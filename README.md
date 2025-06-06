@@ -25,11 +25,11 @@ Next.js for Frontend and Express for backend
 
 ## Alpha Version Milestone
 
-Implementing user authentication and set up chatrooms that other people can join and solve problems together, adding friends.
+Implementing user authentication and set up chatrooms that other people can join and solve problems together, adding friends, notification system.
 
 ## Beta Version Milestone
 
-Implementing screen sharing and viewing, implementing leadership board, and user stats for each user, notification system
+Implementing screen sharing and viewing, implementing leadership board, and user stats for each user, deploying the app.
 
 ## Final Version
 
