@@ -24,19 +24,10 @@ app.post('/create-checkout-session', async (req, res) => {
       },
     ],
     mode: 'subscription',
-    return_url: `http://localhost:3000/return?session_id={CHECKOUT_SESSION_ID}`, // Your Next.js success page URL
+    redirect_on_completion: 'never'
   });
   
   res.send({clientSecret: session.client_secret});
-});
-
-app.get('/session-status', async (req, res) => {
-  const session = await stripe.checkout.sessions.retrieve(req.query.session_id);
-
-  res.send({
-    status: session.status,
-    customer_email: session.customer_details.email
-  });
 });
 
 const PORT = 4242;

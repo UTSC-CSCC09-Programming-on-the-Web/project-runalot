@@ -1,5 +1,5 @@
 import Image from "next/image";
-import CheckoutForm from "./stripe_checkout_fixed";
+import CheckoutForm from "./stripe_checkout";
 
 export default function Home() {
 
