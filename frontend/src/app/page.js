@@ -1,12 +1,14 @@
 import Image from "next/image";
 import CheckoutForm from "./stripe_checkout";
+import Navbar from "./components/Navbar";
 
 export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-indigo-900">
+      <Navbar />
       {/* Header */}
-      <header className="relative overflow-hidden bg-white dark:bg-gray-800 shadow-lg">
+      <header className="relative overflow-hidden bg-white dark:bg-gray-800 shadow-lg pt-16">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 opacity-10"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
@@ -31,7 +33,7 @@ export default function Home() {
       </header>
 
       {/* Features Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
             Game Features
@@ -75,7 +77,7 @@ export default function Home() {
       </section>
 
       {/* How It Works */}
-      <section className="bg-white dark:bg-gray-800 py-20">
+      <section id="how-it-works" className="bg-white dark:bg-gray-800 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
@@ -125,7 +127,7 @@ export default function Home() {
       </section>
 
       {/* Subscription Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+      <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
             Ready to Play?
