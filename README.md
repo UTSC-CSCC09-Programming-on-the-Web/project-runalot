@@ -1,4 +1,4 @@
-# project-lancelot
+# project-runalot
 
 ## Project Idea
 
