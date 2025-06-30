@@ -1,9 +1,17 @@
 "use client";
-
+import { SessionProvider } from "next-auth/react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useState } from "react";
 
 export default function Navbar() {
+  return (
+    <SessionProvider>
+      <NavbarContent />
+    </SessionProvider>
+  );
+}
+
+function NavbarContent() {
   const { data: session, status } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 

@@ -17,7 +17,6 @@
     "phaser": "^3.90.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "strip": "^3.0.0",
     "stripe": "^18.2.1"
   },
   "devDependencies": {
@@ -27,6 +26,7 @@
     "@types/react": "19.1.8",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
