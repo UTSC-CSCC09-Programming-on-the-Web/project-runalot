@@ -1,10 +1,10 @@
 "use client";
 
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useAuth } from "../contexts/AuthContext";
 import { useState } from "react";
 
 export default function Navbar() {
-  const { data: session, status } = useSession();
+  const { user, loading, login, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -46,24 +46,24 @@ export default function Navbar() {
 
           {/* Authentication Section */}
           <div className="hidden md:flex items-center space-x-4">
-            {status === "loading" ? (
+            {loading ? (
               <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            ) : session ? (
+            ) : user ? (
               <div className="flex items-center space-x-3">
                 <div className="flex items-center space-x-2">
-                  {session.user?.image && (
+                  {user.photos && user.photos[0] && (
                     <img
-                      src={session.user.image}
+                      src={user.photos[0].value}
                       alt="Profile"
                       className="w-8 h-8 rounded-full border-2 border-blue-600"
                     />
                   )}
                   <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">
-                    {session.user?.name || session.user?.email}
+                    {user.displayName || user.username || user.emails?.[0]?.value}
                   </span>
                 </div>
                 <button
-                  onClick={() => signOut()}
+                  onClick={logout}
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition duration-300"
                 >
                   Sign Out
@@ -72,7 +72,7 @@ export default function Navbar() {
             ) : (
               <div className="flex items-center space-x-3">
                 <button
-                  onClick={() => signIn("google")}
+                  onClick={() => login("google")}
                   className="flex items-center space-x-2 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition duration-300 shadow-sm"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -96,7 +96,7 @@ export default function Navbar() {
                   <span>Login with Google</span>
                 </button>
                 <button
-                  onClick={() => signIn("github")}
+                  onClick={() => login("github")}
                   className="flex items-center space-x-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition duration-300"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -150,26 +150,26 @@ export default function Navbar() {
               
               {/* Mobile Authentication */}
               <div className="pt-4 pb-3 border-t border-gray-200 dark:border-gray-700">
-                {status === "loading" ? (
+                {loading ? (
                   <div className="flex justify-center">
                     <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                   </div>
-                ) : session ? (
+                ) : user ? (
                   <div className="space-y-3">
                     <div className="flex items-center px-3">
-                      {session.user?.image && (
+                      {user.photos && user.photos[0] && (
                         <img
-                          src={session.user.image}
+                          src={user.photos[0].value}
                           alt="Profile"
                           className="w-8 h-8 rounded-full border-2 border-blue-600 mr-3"
                         />
                       )}
                       <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">
-                        {session.user?.name || session.user?.email}
+                        {user.displayName || user.username || user.emails?.[0]?.value}
                       </span>
                     </div>
                     <button
-                      onClick={() => signOut()}
+                      onClick={logout}
                       className="w-full text-left bg-red-600 hover:bg-red-700 text-white block px-3 py-2 rounded-md text-base font-medium transition duration-300"
                     >
                       Sign Out
@@ -178,7 +178,7 @@ export default function Navbar() {
                 ) : (
                   <div className="space-y-2">
                     <button
-                      onClick={() => signIn("google")}
+                      onClick={() => login("google")}
                       className="w-full flex items-center justify-center space-x-2 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 px-3 py-2 rounded-md text-base font-medium transition duration-300"
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -202,7 +202,7 @@ export default function Navbar() {
                       <span>Sign in with Google</span>
                     </button>
                     <button
-                      onClick={() => signIn("github")}
+                      onClick={() => login("github")}
                       className="w-full flex items-center justify-center space-x-2 bg-gray-900 hover:bg-gray-800 text-white px-3 py-2 rounded-md text-base font-medium transition duration-300"
                     >
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
