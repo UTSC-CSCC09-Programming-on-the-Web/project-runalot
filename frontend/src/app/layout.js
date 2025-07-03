@@ -1,7 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import SessionProvider from "./components/SessionProvider";
-import { getServerSession } from "next-auth";
+import { AuthProvider } from "./contexts/AuthContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,15 +17,13 @@ export const metadata = {
   description: "Experience the ultimate multiplayer tag game with proximity chat and dynamic obstacles. Join or create rooms and play with friends!",
 };
 
-export default async function RootLayout({ children }) {
-  const session = await getServerSession();
-
+export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SessionProvider session={session}>{children}</SessionProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
