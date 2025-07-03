@@ -1,14 +1,17 @@
-import express from 'express';
-import bodyParser from 'body-parser';
-import {sequelize} from './datasource.js';
-import cors from 'cors';
-import stripeRouter from './routes/stripe_router.js';
-import dotenv from 'dotenv';
 
+import dotenv from 'dotenv';
 dotenv.config(); // Load environment variables from .env file
 
-const app = express();
+import express from 'express';
+import bodyParser from 'body-parser';
+import { sequelize } from './datasource.js';
+import cors from 'cors';
+import stripeRouter from './routes/stripe_router.js';
+import http from 'http';
+import { Server } from 'socket.io';
+import gameRouter from './routes/game_router.js';
 
+const app = express();
 
 app.use(cors({
   origin: 'http://localhost:3000', // Your Next.js frontend URL
@@ -21,6 +24,19 @@ app.use(function (req, res, next) {
   console.log("HTTP request", req.method, req.url, req.body);
   next();
 });
+
+// Create HTTP server and Socket.io
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+app.use('/game', gameRouter(io));
 
 try {
   await sequelize.authenticate();
@@ -49,5 +65,4 @@ try {
 // });
 
 const PORT = 4242;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
