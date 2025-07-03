@@ -7,7 +7,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "dependencies": {
     "@sequelize/postgres": "^7.0.0-alpha.46",
@@ -20,6 +22,10 @@
     "express-session": "^1.18.1",
     "router": "^2.2.0",
     "socket.io": "^4.8.1",
+    "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
+    "passport-google-oauth20": "^2.0.0",
+    "passport-local": "^1.0.0",
     "stripe": "^18.2.1"
   },
   "devDependencies": {
