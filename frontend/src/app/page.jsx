@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import CheckoutForm from "./stripe_checkout";
 import Navbar from "./components/Navbar";
 export default function Home() {
@@ -13,11 +12,9 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 opacity-10"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Project Lancelot
-              </span>
-            </h1>
+            <span className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent block">
+              Project Lancelot
+            </span>
             <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
               The ultimate multiplayer tag game with proximity chat and dynamic obstacles
             </p>

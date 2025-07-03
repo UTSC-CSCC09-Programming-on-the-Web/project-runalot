@@ -1,4 +1,4 @@
-"use client"; // Can often be removed from the page if the dynamic component handles client-side logic
+"use client";
 
 import React from 'react';
 import dynamic from 'next/dynamic';
@@ -14,11 +14,11 @@ const PhaserGameNoSSR = dynamic(
 
 export default function GamePage() {
   return (
-    <main style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <h1 style={{ marginBottom: '20px' }}>My Phaser Game in Next.js</h1>
+    <div className="flex flex-col items-center justify-center min-h-screen">
+      <h1 className="mb-5 text-3xl font-bold text-center">My Phaser Game in Next.js</h1>
       <PhaserGameNoSSR />
-      <p style={{ marginTop: '20px' }}>This page is a JavaScript React component (.jsx).</p>
-      <p>The Phaser game itself is a TypeScript component (.tsx), now loaded dynamically.</p>
-    </main>
+      <p className="mt-5 text-gray-700 dark:text-gray-300">This page is a JavaScript React component (.jsx).</p>
+      <p className="text-gray-600 dark:text-gray-400">The Phaser game itself is a TypeScript component (.tsx), now loaded dynamically.</p>
+    </div>
   );
 }

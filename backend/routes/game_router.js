@@ -122,9 +122,9 @@ function gameLoop() {
     let canMoveX = true; // Assume can move, prove otherwise
     let canMoveY = true; // Assume can move, prove otherwise
 
-    if (player.vx !== 0 || player.vy !== 0) { // Only log if there's an attempt to move
-      console.log(`[DebugMove] Start: Client ${clientId}, ActiveKeys: ${Array.from(player.activeKeys)}, Pos: (${currentX.toFixed(2)}, ${currentY.toFixed(2)}), Vel: (${player.vx.toFixed(2)}, ${player.vy.toFixed(2)}), Next: (${nextX.toFixed(2)}, ${nextY.toFixed(2)})`);
-    }
+    // if (player.vx !== 0 || player.vy !== 0) { // Only log if there's an attempt to move
+    //   console.log(`[DebugMove] Start: Client ${clientId}, ActiveKeys: ${Array.from(player.activeKeys)}, Pos: (${currentX.toFixed(2)}, ${currentY.toFixed(2)}), Vel: (${player.vx.toFixed(2)}, ${player.vy.toFixed(2)}), Next: (${nextX.toFixed(2)}, ${nextY.toFixed(2)})`);
+    // }
 
     // --- Collision Detection ---
     // Treat player as a 32x32 tile for collision
