@@ -11,7 +11,7 @@ export default function gameRouter(io){
 const tagRouter = Router();
 
 // --- Game Configuration ---
-const PLAYER_SPEED = 250; // pixels per second
+const PLAYER_SPEED = 220; // pixels per second
 const SERVER_TICK_RATE = 1000 / 60; // 60 FPS
 const TILE_SIZE = 32; // pixels
 
@@ -58,7 +58,7 @@ const broadcastGameState = () => {
 };
 
 io.on('connection', (socket) => {
-  const clientId = socket.id;
+  const clientId = 1;
   console.log(`Client ${clientId} connected`);
   gameState.players[clientId] = {
     x: 96,
@@ -74,12 +74,14 @@ io.on('connection', (socket) => {
   socket.on('keyPress', (payload) => {
     const player = gameState.players[clientId];
     if (!player) return;
+    // console.log(`[Socket] Key press from ${clientId}: ${payload.key}`);
     player.activeKeys.add(payload.key);
   });
 
   socket.on('keyRelease', (payload) => {
     const player = gameState.players[clientId];
     if (!player) return;
+    console.log(`[Socket] Key release from ${clientId}: ${payload.key}`);
     player.activeKeys.delete(payload.key);
   });
 

@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import * as Phaser from 'phaser';
-import io from 'socket.io-client';
+import {Socket} from 'socket.io-client';
 
 
 interface PhaserGameProps {
     // Props can be added here if needed later, e.g., to pass game configurations
+    socketIo: any;
+    clientId: string;
 }
 
 
@@ -151,14 +153,14 @@ class MainScene extends Phaser.Scene {
 
         // World dimensions are simpler: mapWidthInTiles * tilePixelWidth
         this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
-        this.cameras.main.setZoom(1.4);
+        this.cameras.main.setZoom(1.6);
 
         if (!obstacleLayer) {
             throw new Error('Tileset failed to load.');
         }
 
         // Use scale so the sprite visually fits a 32x32 tile
-        const player = this.physics.add.sprite(32, 32, 'player');
+        const player = this.physics.add.sprite(96, 128, 'player');
         player.setOrigin(0, 0); // Top-left origin so (x, y) matches backend
         player.setDisplaySize(32, 32); // Visually fit in a 32x32 tile
         player.body.setSize(32, 32); // Physics body is 32x32
@@ -211,15 +213,13 @@ class MainScene extends Phaser.Scene {
     }
 
     private sendKeySocketMessage(key: string, type: 'keyPress' | 'keyRelease') {
-        if (this.socket && this.socket.connected) {
-            this.socket.emit(type, { key, timestamp: Date.now() });
+        // Always get the latest socket instance from the registry before using it.
+        const socket = this.game.registry.get('socket');
+
+        if (socket && socket.connected) {
+            socket.emit(type, { key, timestamp: Date.now() });
         } else {
-            if (!this.socket) this.socket = this.game.registry.get('socket');
-            if (!this.socket || !this.socket.connected) {
-                console.warn('Socket.io not connected. Key event not sent.');
-            } else {
-                this.socket.emit(type, { key, timestamp: Date.now() });
-            }
+            console.warn(`[MainScene] Socket not connected or not in registry. Cannot send key event.`);
         }
     }
 
@@ -259,36 +259,22 @@ class MainScene extends Phaser.Scene {
 
 
     update(time: number, delta: number) {
-        // Ensure clientId is available if it wasn't at init/create
-        if (!this.localClientId) {
-            this.localClientId = this.game.registry.get('clientId');
-        }
-
-        // Use this.lastServerUpdate which is populated by the registry event listener
+        // First, process any pending server update.
         const currentServerUpdate = this.lastServerUpdate;
-
+        // console.log(`[MainScene Update] Processing server update: ${currentServerUpdate ? JSON.stringify(currentServerUpdate) : 'No update'}`);
         if (currentServerUpdate) {
             this.handleGameStateUpdate(currentServerUpdate);
-            this.lastServerUpdate = null;
+            this.lastServerUpdate = null; // Clear the update after processing
         }
 
-        // Local animation updates for the local player (based on pressed keys)
-        if (this.player && this.pressedKeys.size > 0) {
-            if (this.pressedKeys.has('Left')) this.player.anims.play('left', true);
-            else if (this.pressedKeys.has('Right')) this.player.anims.play('right', true);
-            else if (this.pressedKeys.has('Up')) this.player.anims.play('up', true);
-            else if (this.pressedKeys.has('Down')) this.player.anims.play('down', true);
-        } else if (this.player && this.pressedKeys.size === 0) {
-            const localPlayerData = this.lastServerUpdate?.players[this.localClientId!];
-            if (localPlayerData && localPlayerData.vx === 0 && localPlayerData.vy === 0) {
-                 this.player.anims.stop();
-            }
-        }
+        // After handling server updates, you can apply local-only logic if needed,
+        // but for a server-authoritative model, it's often best to rely on the server's state.
+        // The handleGameStateUpdate method now correctly handles animations based on server velocity.
     }
 
     private handleGameStateUpdate(gameState: any) {
         if (!gameState || !gameState.players) {
-            // console.warn('[MainScene HGSUpdate] Received invalid or empty gameState:', gameState);
+            console.warn('[MainScene HGSUpdate] Received invalid or empty gameState:', gameState);
             return;
         }
         // console.log('[MainScene HGSUpdate] Handling gameState:', JSON.parse(JSON.stringify(gameState)));
@@ -304,18 +290,18 @@ class MainScene extends Phaser.Scene {
         // Update local player
         if (this.player && serverPlayers[this.localClientId]) { // Check if localClientId exists in serverPlayers
             const playerData = serverPlayers[this.localClientId];
-            // console.log(`[MainScene HGSUpdate] LocalPlayer (${this.localClientId}): ServerData: P(${playerData.x.toFixed(2)}, ${playerData.y.toFixed(2)}) V(${playerData.vx.toFixed(2)}, ${playerData.vy.toFixed(2)}). CurrentSprite: P(${this.player.x.toFixed(2)}, ${this.player.y.toFixed(2)})`);
+            console.log(`[MainScene HGSUpdate] LocalPlayer (${this.localClientId}): ServerData: P(${playerData.x.toFixed(2)}, ${playerData.y.toFixed(2)}) V(${playerData.vx.toFixed(2)}, ${playerData.vy.toFixed(2)}). CurrentSprite: P(${this.player.x.toFixed(2)}, ${this.player.y.toFixed(2)})`);
 
             const positionChanged = Math.abs(this.player.x - playerData.x) > 0.1 || Math.abs(this.player.y - playerData.y) > 0.1; // Lowered threshold for logging
             // console.log(`[MainScene HGSUpdate] LocalPlayer (${this.localClientId}): Position changed for tween? ${positionChanged}. DiffX: ${Math.abs(this.player.x - playerData.x)}, DiffY: ${Math.abs(this.player.y - playerData.y)}`);
 
             if (positionChanged) {
-                // console.log(`[MainScene HGSUpdate] LocalPlayer (${this.localClientId}): CREATING TWEEN from (${this.player.x.toFixed(2)}, ${this.player.y.toFixed(2)}) to (${playerData.x.toFixed(2)}, ${playerData.y.toFixed(2)})`);
+                console.log(`[MainScene HGSUpdate] LocalPlayer (${this.localClientId}): CREATING TWEEN from (${this.player.x.toFixed(2)}, ${this.player.y.toFixed(2)}) to (${playerData.x.toFixed(2)}, ${playerData.y.toFixed(2)})`);
                 this.tweens.add({
                     targets: this.player,
                     x: playerData.x,
                     y: playerData.y,
-                    duration: 80, // Slightly less than typical server tick interval for catch-up
+                    duration: 100, // Slightly less than typical server tick interval for catch-up
                     ease: 'Linear'
                 });
             } else {
@@ -377,68 +363,20 @@ class MainScene extends Phaser.Scene {
     }
 }
 
-const PhaserGame: React.FC<PhaserGameProps> = () => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId }) => {
+
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameInstanceRef = useRef<Phaser.Game | null>(null);
-    const wsRef = useRef<any>(null); // Ref to hold the socket.io instance
 
-
+    // Effect 1: Handles Phaser game instance creation and destruction
     useEffect(() => {
-        // Initialize socket.io connection
-        let socketIoClient: any = null;
-        if (typeof window !== 'undefined' && !wsRef.current) {
-
-                const url = 'http://localhost:4242';
-                console.log(`Connecting to socket.io server at ${url}`);
-                socketIoClient = io(url);
-
-                socketIoClient.on('connect', () => {
-                    console.log('Socket.io connection established');
-                    wsRef.current = socketIoClient;
-                    if (gameInstanceRef.current) {
-                        gameInstanceRef.current.registry.set('socket', socketIoClient);
-                        console.log('Socket.io instance stored in Phaser Registry.');
-                    }
-                });
-
-                socketIoClient.on('gameStateUpdate', (payload: any) => {
-                    if (gameInstanceRef.current) {
-                        gameInstanceRef.current.registry.set('serverGameState', payload);
-                    }
-                });
-
-                socketIoClient.on('welcome', (data: any) => {
-                    if (gameInstanceRef.current) {
-                        gameInstanceRef.current.registry.set('clientId', data.clientId);
-                    }
-                });
-
-                socketIoClient.on('chat', (data: any) => {
-                    console.log(`Chat from ${data.senderId}: ${data.payload}`);
-                });
-
-                socketIoClient.on('error', (err: any) => {
-                    console.error('Socket.io error:', err);
-                });
-
-                socketIoClient.on('disconnect', (reason: string) => {
-                    console.log('Socket.io connection closed:', reason);
-                    wsRef.current = null;
-                });
-        }
-
-        // Initialize Phaser Game
-        if (typeof window !== 'undefined' && gameContainerRef.current && !gameInstanceRef.current) {
-            // Orthogonal map dimensions
+        if (gameContainerRef.current && !gameInstanceRef.current) {
             const mapTilesWide = 40;
             const mapTilesHigh = 40;
             const tilePixelWidth = 32;
             const tilePixelHeight = 32;
-
-            const gameWorldWidth = mapTilesWide * tilePixelWidth; // 30 * 32 = 960
-            const gameWorldHeight = mapTilesHigh * tilePixelHeight; // 30 * 32 = 960
-
-            // Viewport size
+            const gameWorldWidth = mapTilesWide * tilePixelWidth;
+            const gameWorldHeight = mapTilesHigh * tilePixelHeight;
             const viewportWidth = Math.min(gameWorldWidth, 720);
             const viewportHeight = Math.min(gameWorldHeight, 600);
 
@@ -448,7 +386,7 @@ const PhaserGame: React.FC<PhaserGameProps> = () => {
                 height: viewportHeight,
                 parent: gameContainerRef.current,
                 scene: [BootScene, MainScene],
-                physics: { // Physics might not be used yet but good to have configured
+                physics: {
                     default: 'arcade',
                 },
                 pixelArt: true,
@@ -459,21 +397,79 @@ const PhaserGame: React.FC<PhaserGameProps> = () => {
             };
 
             gameInstanceRef.current = new Phaser.Game(config);
-            console.log('Phaser Game instance created with orthogonal config:', config);
+            gameInstanceRef.current.registry.set('clientId', clientId);
+            console.log('[PhaserGame] Game instance created.');
         }
 
         return () => {
             if (gameInstanceRef.current) {
-                console.log('Destroying Phaser Game instance');
+                console.log('[PhaserGame] Destroying game instance.');
                 gameInstanceRef.current.destroy(true);
                 gameInstanceRef.current = null;
             }
-            if (wsRef.current) {
-                wsRef.current.disconnect && wsRef.current.disconnect();
-                wsRef.current = null;
+        };
+    }, []); // Runs once on mount
+
+    // Effect 2: Handles socket connection and event listeners
+    useEffect(() => {
+        if (!socketIo) {
+            console.log('[PhaserGame] Socket not available yet.');
+            return;
+        }
+
+        let pollId: number | null = null;
+
+        const tryInjectSocket = () => {
+            if (gameInstanceRef.current && socketIo.connected) {
+                gameInstanceRef.current.registry.set('socket', socketIo);
+                console.log('[PhaserGame] Socket successfully injected into Phaser registry.');
+                return true; // Injection successful
+            }
+            return false; // Not ready yet
+        };
+
+        const pollForInjection = () => {
+            if (!tryInjectSocket()) {
+                pollId = requestAnimationFrame(pollForInjection);
             }
         };
-    }, []);
+
+        // Start polling
+        pollForInjection();
+
+        const onConnect = () => {
+            console.log('[PhaserGame] Socket connected.');
+            tryInjectSocket(); // Attempt injection on connect
+        };
+
+        const onDisconnect = (reason: string) => {
+            console.log('[PhaserGame] Socket disconnected:', reason);
+        };
+
+        const onGameStateUpdate = (gameState: any) => {
+            if (gameInstanceRef.current) {
+                gameInstanceRef.current.registry.set('serverGameState', gameState);
+            }
+        };
+
+
+        // Register listeners
+        socketIo.on('connect', onConnect);
+        socketIo.on('disconnect', onDisconnect);
+        socketIo.on('gameStateUpdate', onGameStateUpdate);
+
+        // Cleanup function
+        return () => {
+            console.log('[PhaserGame] Cleaning up socket listeners.');
+            if (pollId) {
+                cancelAnimationFrame(pollId);
+            }
+            socketIo.off('connect', onConnect);
+            socketIo.off('disconnect', onDisconnect);
+            socketIo.off('gameStateUpdate', onGameStateUpdate);
+        };
+
+    }, [socketIo]);
 
     // Adjust div style to match viewport
     const mapTilesWide = 30;

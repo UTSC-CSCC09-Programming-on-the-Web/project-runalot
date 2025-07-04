@@ -9,10 +9,10 @@ import stripeRouter from './routes/stripe_router.js';
 import http from 'http';
 import { Server } from 'socket.io';
 import gameRouter from './routes/game_router.js';
-const session = require('express-session');
-const passport = require('passport');
-const GitHubStrategy = require('passport-github2').Strategy;
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
+import session from 'express-session';
+import passport from 'passport';
+import { Strategy as GitHubStrategy } from 'passport-github2';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 
 
 const app = express();
