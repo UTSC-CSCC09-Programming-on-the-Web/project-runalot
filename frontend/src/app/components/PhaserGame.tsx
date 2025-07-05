@@ -7,6 +7,7 @@ interface PhaserGameProps {
     // Props can be added here if needed later, e.g., to pass game configurations
     socketIo: any;
     clientId: string;
+    roomId: string;
 }
 
 
@@ -94,7 +95,6 @@ class MainScene extends Phaser.Scene {
     }
 
     preload() {
-        // console.log('MainScene preload'); // Standard Phaser log, can be kept or removed
     }
 
     create() {
@@ -197,9 +197,8 @@ class MainScene extends Phaser.Scene {
 
         this.cursors = this.input.keyboard?.createCursorKeys(); // Keep for easy access to key states if needed, but direct event handling is better for press/release.
 
-        // After generating obstacleData and creating the player
-        // Store map and player position as matrices for backend use
-        this.mapMatrix = obstacleData.map(row => [...row]);
+
+        //this.mapMatrix = obstacleData.map(row => [...row]);
         // this.playerPosition = { x: player.x, y: player.y }; // Player position will be updated by server
 
         // Setup keyboard event handling for sending messages
@@ -363,7 +362,7 @@ class MainScene extends Phaser.Scene {
     }
 }
 
-const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) => {
 
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameInstanceRef = useRef<Phaser.Game | null>(null);
@@ -398,6 +397,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId }) => {
 
             gameInstanceRef.current = new Phaser.Game(config);
             gameInstanceRef.current.registry.set('clientId', clientId);
+            gameInstanceRef.current.registry.set('roomId', roomId);
             console.log('[PhaserGame] Game instance created.');
         }
 
