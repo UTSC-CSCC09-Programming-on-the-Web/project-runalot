@@ -6,6 +6,7 @@ import {
   EmbeddedCheckoutProvider,
   EmbeddedCheckout
 } from '@stripe/react-stripe-js';
+import { useAuth } from './contexts/AuthContext';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -21,11 +22,26 @@ const handleComplete = () => {
 
 const CheckoutForm = () => {
   const [error, setError] = useState(null);
+  const { user, loading } = useAuth();
   
   const fetchClientSecret = useCallback(() => {
-    // Create a Checkout Session
+    if (!user) {
+      setError('User not authenticated');
+      return Promise.reject(new Error('User not authenticated'));
+    }
+
+    // Create a Checkout Session with user ID
     return fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/stripe/create-checkout-session`, {
       method: "POST",
+      credentials: 'include', // Include cookies for authentication
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: user.id,
+        userEmail: user.emails?.[0]?.value || user.email, // Handle different auth providers
+        userName: user.displayName || user.name || `${user.given_name} ${user.family_name}`,
+      }),
     })
       .then((res) => {
         if (!res.ok) {
@@ -42,9 +58,26 @@ const CheckoutForm = () => {
         setError(err.message);
         throw err;
       });
-  }, []);
+  }, [user]);
 
   const options = {fetchClientSecret};
+
+  if (loading) {
+    return (
+      <div style={{padding: '20px', textAlign: 'center'}}>
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div style={{padding: '20px', border: '1px solid orange', borderRadius: '5px'}}>
+        <h3>Authentication Required</h3>
+        <p>Please log in to proceed with checkout.</p>
+      </div>
+    );
+  }
 
   if (error) {
     return (

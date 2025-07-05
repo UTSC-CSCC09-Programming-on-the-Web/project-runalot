@@ -17,6 +17,33 @@ import {authRouter} from './routes/auth-router.js';
 
 const app = express();
 
+// Passport configuration
+passport.serializeUser((user, done) => {
+  done(null, user);
+});
+
+passport.deserializeUser((user, done) => {
+  done(null, user);
+});
+
+// GitHub Strategy
+passport.use(new GitHubStrategy({
+  clientID: process.env.GITHUB_ID,
+  clientSecret: process.env.GITHUB_SECRET,
+  callbackURL: `${process.env.BACKEND_URL}/auth/github/callback`
+}, (accessToken, refreshToken, profile, done) => {
+  return done(null, profile);
+}));
+
+// Google Strategy
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_ID,
+  clientSecret: process.env.GOOGLE_SECRET,
+  callbackURL: `${process.env.BACKEND_URL}/auth/google/callback`
+}, (accessToken, refreshToken, profile, done) => {
+  return done(null, profile);
+}));
+
 // Session configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
@@ -34,15 +61,20 @@ app.use(cors({
   credentials: true
 }));
 
-
-app.use("/stripe", stripeRouter);
-
-// Initialize Passport
+// Initialize Passport BEFORE any routes that need authentication
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Routes
+// Special handling for Stripe webhook - needs raw body
+app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
+
+// Body parsing middleware for other routes
+app.use(express.json()); // Parse JSON bodies
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+
+// Routes (after Passport initialization)
 app.use('/auth', authRouter);
+app.use("/stripe", stripeRouter);
 
 
 app.use(function (req, res, next) {
