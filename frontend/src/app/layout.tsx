@@ -17,7 +17,9 @@ export const metadata = {
   description: "Experience the ultimate multiplayer tag game with proximity chat and dynamic obstacles. Join or create rooms and play with friends!",
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({ children }: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
       <body
@@ -28,3 +30,4 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
+

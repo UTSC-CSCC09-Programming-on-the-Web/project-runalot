@@ -6,11 +6,14 @@ import {
   EmbeddedCheckoutProvider,
   EmbeddedCheckout
 } from '@stripe/react-stripe-js';
+import dotenv from 'dotenv';
+
+dotenv.config(); // Load environment variables from .env file
 
 // Make sure to call `loadStripe` outside of a component's render to avoid
 // recreating the `Stripe` object on every render.
 // This is your test publishable API key - replace with your actual publishable key
-const stripePromise = loadStripe("pk_test_51Rcz3hBTl82uMRTfe2NuvfM1gbLkoWUANvSHN5gg6AM9d9XPtAaej0Fj8V0OkwMIuYjWGh1wVokaBwAE8pM0dl1N00PxH3XoWw");
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY);
 
 const handleComplete = () => {
   console.log('Checkout completed');
@@ -21,7 +24,7 @@ const CheckoutForm = () => {
   
   const fetchClientSecret = useCallback(() => {
     // Create a Checkout Session
-    return fetch("http://localhost:4242/create-checkout-session", {
+    return fetch("http://localhost:4242/stripe/create-checkout-session", {
       method: "POST",
     })
       .then((res) => {
