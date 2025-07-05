@@ -2,7 +2,10 @@
 
 import React from 'react';
 import dynamic from 'next/dynamic';
-import useSocket from '@/hooks/useSocket'; // Using the new hook
+import useSocket from '@/hooks/useSocket';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Dynamically import the PhaserGame component with SSR turned off
 const PhaserGameNoSSR = dynamic(
@@ -15,7 +18,7 @@ const PhaserGameNoSSR = dynamic(
 
 export default function GamePage() {
   // Pass roomId and clientId in the socket query for the backend to use.
-  const socket = useSocket('http://localhost:4242', { roomId: '1', clientId: '1' });
+  const socket = useSocket(process.env.NEXT_PUBLIC_BACKEND_URL, { roomId: '1', clientId: '1' });
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen">

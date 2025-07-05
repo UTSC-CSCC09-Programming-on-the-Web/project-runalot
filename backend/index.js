@@ -30,7 +30,7 @@ app.use(session({
 
 
 app.use(cors({
-  origin: 'http://localhost:3000', // Your Next.js frontend URL
+  origin: process.env.FRONTEND_URL, // Your Next.js frontend URL
   credentials: true
 }));
 
@@ -55,7 +55,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL,
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -89,5 +89,5 @@ try {
 //   res.send({clientSecret: session.client_secret});
 // });
 
-const PORT = 4242;
+const PORT = process.env.PORT;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

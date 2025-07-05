@@ -1,6 +1,9 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
+import dotenv from 'dotenv';
+
+dotenv.config(); // Load environment variables from .env file
 
 const AuthContext = createContext();
 
@@ -22,7 +25,7 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('http://localhost:4242/auth/user', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/user`, {
         credentials: 'include',
       });
       
@@ -41,12 +44,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = (provider) => {
-    window.location.href = `http://localhost:4242/auth/${provider}`;
+    window.location.href = `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/${provider}`;
   };
 
   const logout = async () => {
     try {
-      await fetch('http://localhost:4242/auth/logout', {
+      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/logout`, {
         credentials: 'include',
       });
       setUser(null);

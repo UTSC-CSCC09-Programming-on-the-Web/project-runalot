@@ -8,7 +8,7 @@ import {
 } from '@stripe/react-stripe-js';
 import dotenv from 'dotenv';
 
-dotenv.config(); // Load environment variables from .env file
+dotenv.config();
 
 // Make sure to call `loadStripe` outside of a component's render to avoid
 // recreating the `Stripe` object on every render.
@@ -24,7 +24,7 @@ const CheckoutForm = () => {
   
   const fetchClientSecret = useCallback(() => {
     // Create a Checkout Session
-    return fetch("http://localhost:4242/stripe/create-checkout-session", {
+    return fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/stripe/create-checkout-session`, {
       method: "POST",
     })
       .then((res) => {
