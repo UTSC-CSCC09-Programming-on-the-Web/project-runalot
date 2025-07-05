@@ -1,9 +1,12 @@
-const express = require('express');
-const passport = require('passport');
-const GitHubStrategy = require('passport-github2').Strategy;
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
+import passport from 'passport';
+import express from 'express';
+import { Router } from 'express';
+import { Strategy as GitHubStrategy } from 'passport-github2';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const router = express.Router();
+const router = Router();
 
 // Passport serialization
 passport.serializeUser((user, done) => {
@@ -76,4 +79,4 @@ const requireAuth = (req, res, next) => {
   res.status(401).json({ error: 'Authentication required' });
 };
 
-module.exports = { router, requireAuth };
+export { router as authRouter, requireAuth };

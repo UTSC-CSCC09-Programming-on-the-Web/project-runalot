@@ -13,6 +13,7 @@ import session from 'express-session';
 import passport from 'passport';
 import { Strategy as GitHubStrategy } from 'passport-github2';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import {authRouter} from './routes/auth-router.js';
 
 const app = express();
 
