@@ -14,7 +14,6 @@ import passport from 'passport';
 import { Strategy as GitHubStrategy } from 'passport-github2';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 
-
 const app = express();
 
 // Session configuration
@@ -41,76 +40,9 @@ app.use("/stripe", stripeRouter);
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Passport serialization
-passport.serializeUser((user, done) => {
-  done(null, user);
-});
+// Routes
+app.use('/auth', authRouter);
 
-passport.deserializeUser((user, done) => {
-  done(null, user);
-});
-
-// GitHub Strategy
-passport.use(new GitHubStrategy({
-  clientID: process.env.GITHUB_ID,
-  clientSecret: process.env.GITHUB_SECRET,
-  callbackURL: "http://localhost:4242/auth/github/callback"
-}, (accessToken, refreshToken, profile, done) => {
-  return done(null, profile);
-}));
-
-// Google Strategy
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_ID,
-  clientSecret: process.env.GOOGLE_SECRET,
-  callbackURL: "http://localhost:4242/auth/google/callback"
-}, (accessToken, refreshToken, profile, done) => {
-  return done(null, profile);
-}));
-
-// Authentication routes
-app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
-
-app.get('/auth/github/callback',
-  passport.authenticate('github', { failureRedirect: 'http://localhost:3000/login?error=github' }),
-  (req, res) => {
-    res.redirect('http://localhost:3000/dashboard');
-  }
-);
-
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-
-app.get('/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: 'http://localhost:3000/login?error=google' }),
-  (req, res) => {
-    res.redirect('http://localhost:3000/dashboard');
-  }
-);
-
-app.get('/auth/logout', (req, res) => {
-  req.logout((err) => {
-    if (err) {
-      return res.status(500).json({ error: 'Failed to logout' });
-    }
-    res.json({ message: 'Logged out successfully' });
-  });
-});
-
-app.get('/auth/user', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.json({ user: req.user });
-  } else {
-    res.status(401).json({ error: 'Not authenticated' });
-  }
-});
-
-// Middleware to check if user is authenticated
-const requireAuth = (req, res, next) => {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  res.status(401).json({ error: 'Authentication required' });
-};
 
 app.use(function (req, res, next) {
   console.log("HTTP request", req.method, req.url, req.body);
