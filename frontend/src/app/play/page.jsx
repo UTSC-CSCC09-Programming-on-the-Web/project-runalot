@@ -14,15 +14,14 @@ const PhaserGameNoSSR = dynamic(
 );
 
 export default function GamePage() {
-  const socket = useSocket('http://localhost:4242');
+  // Pass roomId and clientId in the socket query for the backend to use.
+  const socket = useSocket('http://localhost:4242', { roomId: '1', clientId: '1' });
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen">
-      <h1 className="mb-5 text-3xl font-bold text-center">My Phaser Game in Next.js</h1>
+      <h1 className="mb-5 text-3xl font-bold text-center">Ready, Set, TAG!</h1>
       {/* Render PhaserGame only when the socket is connected */}
-      {socket ? <PhaserGameNoSSR socketIo={socket} clientId={1}/> : <p>Connecting to game server...</p>}
-      <p className="mt-5 text-gray-700 dark:text-gray-300">This page is a JavaScript React component (.jsx).</p>
-      <p className="text-gray-600 dark:text-gray-400">The Phaser game itself is a TypeScript component (.tsx), now loaded dynamically.</p>
+      {socket ? <PhaserGameNoSSR socketIo={socket} clientId="1" roomId="1"/> : <p>Connecting to game server...</p>}
     </div>
   );
 }
