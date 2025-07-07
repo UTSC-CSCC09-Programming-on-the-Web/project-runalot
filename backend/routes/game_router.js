@@ -49,8 +49,20 @@ const MAP_HEIGHT_TILES = OBSTACLE_MATRIX.length;
 // --- Game State ---
 let gameState = {
   rooms: {},
+  waitingRooms: {}, // New: waiting rooms separate from active game rooms
 };
 
+// Function to broadcast waiting room updates
+const broadcastWaitingRoomUpdate = (roomId) => {
+  const waitingRoom = gameState.waitingRooms[roomId];
+  if (waitingRoom) {
+    io.to(`waiting_${roomId}`).emit('roomUpdate', {
+      players: waitingRoom.players,
+      host: waitingRoom.host,
+      roomId: roomId
+    });
+  }
+};
 
 // Function to broadcast game state to all clients
 const broadcastGameState = () => {
@@ -70,6 +82,119 @@ io.on('connection', (socket) => {
   }
 
   console.log(`Client ${clientId} connected to room ${roomId}`);
+  
+  // Handle waiting room events
+  socket.on('joinWaitingRoom', (data) => {
+    const { roomId, clientId, playerName } = data;
+    console.log(`Player ${clientId} (${playerName}) joining waiting room ${roomId}`);
+    
+    // Create waiting room if it doesn't exist
+    if (!gameState.waitingRooms[roomId]) {
+      gameState.waitingRooms[roomId] = {
+        players: [],
+        host: clientId,
+        gameStarted: false
+      };
+    }
+    
+    // Add player to waiting room
+    const waitingRoom = gameState.waitingRooms[roomId];
+    const existingPlayerIndex = waitingRoom.players.findIndex(p => p.id === clientId);
+    
+    if (existingPlayerIndex === -1) {
+      waitingRoom.players.push({
+        id: clientId,
+        name: playerName,
+        isHost: clientId === waitingRoom.host
+      });
+    }
+    
+    // Join waiting room socket room
+    socket.join(`waiting_${roomId}`);
+    
+    // Broadcast update to all players in waiting room
+    broadcastWaitingRoomUpdate(roomId);
+    
+    // Notify other players
+    socket.to(`waiting_${roomId}`).emit('playerJoined', { playerId: clientId, playerName });
+  });
+  
+  socket.on('leaveWaitingRoom', (data) => {
+    const { roomId, clientId } = data;
+    console.log(`Player ${clientId} leaving waiting room ${roomId}`);
+    
+    const waitingRoom = gameState.waitingRooms[roomId];
+    if (waitingRoom) {
+      // Remove player from waiting room
+      waitingRoom.players = waitingRoom.players.filter(p => p.id !== clientId);
+      
+      // If host left, assign new host
+      if (waitingRoom.host === clientId && waitingRoom.players.length > 0) {
+        waitingRoom.host = waitingRoom.players[0].id;
+        waitingRoom.players[0].isHost = true;
+      }
+      
+      // Leave waiting room socket room
+      socket.leave(`waiting_${roomId}`);
+      
+      // If room is empty, delete it
+      if (waitingRoom.players.length === 0) {
+        delete gameState.waitingRooms[roomId];
+      } else {
+        broadcastWaitingRoomUpdate(roomId);
+      }
+      
+      // Notify other players
+      socket.to(`waiting_${roomId}`).emit('playerLeft', { playerId: clientId });
+    }
+  });
+  
+  socket.on('startGame', (data) => {
+    const { roomId } = data;
+    const waitingRoom = gameState.waitingRooms[roomId];
+    
+    if (waitingRoom && waitingRoom.host === clientId) {
+      console.log(`Host ${clientId} starting game in room ${roomId}`);
+      
+      // Create game room from waiting room
+      if (!gameState.rooms[roomId]) {
+        gameState.rooms[roomId] = {
+          players: {},
+        };
+      }
+      
+      // Move players from waiting room to game room
+      waitingRoom.players.forEach(player => {
+        gameState.rooms[roomId].players[player.id] = {
+          x: 96,
+          y: 128,
+          vx: 0,
+          vy: 0,
+          activeKeys: new Set(),
+        };
+      });
+      
+      // Notify all players in waiting room to start game
+      io.to(`waiting_${roomId}`).emit('gameStart', { roomId });
+      
+      // Move all players from waiting room to game room
+      waitingRoom.players.forEach(player => {
+        const playerSocket = io.sockets.sockets.get(player.socketId);
+        if (playerSocket) {
+          playerSocket.leave(`waiting_${roomId}`);
+          playerSocket.join(roomId);
+        }
+      });
+      
+      // Clean up waiting room
+      delete gameState.waitingRooms[roomId];
+      
+      // Start broadcasting game state
+      broadcastGameState();
+    }
+  });
+
+  // Original game logic - only join game room if not in waiting room
   socket.join(roomId); // Client joins the specific room
 
   if (!gameState.rooms[roomId]) {
@@ -110,6 +235,31 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log(`Client ${clientId} disconnected from room ${roomId}`);
+    
+    // Handle waiting room disconnection
+    const waitingRoom = gameState.waitingRooms[roomId];
+    if (waitingRoom) {
+      // Remove player from waiting room
+      waitingRoom.players = waitingRoom.players.filter(p => p.id !== clientId);
+      
+      // If host left, assign new host
+      if (waitingRoom.host === clientId && waitingRoom.players.length > 0) {
+        waitingRoom.host = waitingRoom.players[0].id;
+        waitingRoom.players[0].isHost = true;
+      }
+      
+      // If room is empty, delete it
+      if (waitingRoom.players.length === 0) {
+        delete gameState.waitingRooms[roomId];
+      } else {
+        broadcastWaitingRoomUpdate(roomId);
+      }
+      
+      // Notify other players
+      socket.to(`waiting_${roomId}`).emit('playerLeft', { playerId: clientId });
+    }
+    
+    // Handle game room disconnection
     const room = gameState.rooms[roomId];
     if (room && room.players[clientId]) {
       delete room.players[clientId];
@@ -119,7 +269,7 @@ io.on('connection', (socket) => {
         delete gameState.rooms[roomId];
       } else {
         // Otherwise, just broadcast the updated state
-        broadcastGameState(roomId);
+        broadcastGameState();
       }
     }
   });
