@@ -2,6 +2,7 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import { Router } from 'express';
+import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 
 dotenv.config(); // Load environment variables from .env file
@@ -10,8 +11,12 @@ export default function gameRouter(io){
 
 const tagRouter = Router();
 
+tagRouter.use(bodyParser.urlencoded({ extended: false }));
+tagRouter.use(bodyParser.json());
+
 // --- Game Configuration ---
-const PLAYER_SPEED = 220; // pixels per second
+const PLAYER_SPEED = 180;
+const TAGGER_SPEED = 200;
 const SERVER_TICK_RATE = 1000 / 60; // 60 FPS
 const TILE_SIZE = 32; // pixels
 
@@ -75,6 +80,7 @@ io.on('connection', (socket) => {
   if (!gameState.rooms[roomId]) {
     gameState.rooms[roomId] = {
       players: {},
+      started: false
     };
   }
   gameState.rooms[roomId].players[clientId] = {
@@ -83,10 +89,47 @@ io.on('connection', (socket) => {
     vx: 0,
     vy: 0,
     activeKeys: new Set(),
+    tagger: false
   };
 
   socket.emit('welcome', { clientId, message: 'Server working' });
   broadcastGameState();
+
+  socket.on('startGame', () => {
+    const room = gameState.rooms[roomId];
+    if (!room || room.started) {
+      // Game already started or room doesn't exist
+      return;
+    }
+
+    console.log(`Client ${clientId} requested to start the game in room ${roomId}`);
+    room.started = true; // Mark the game as started
+
+    const playerIds = Object.keys(room.players);
+    if (playerIds.length > 0) {
+      // Your existing logic to assign roles and positions
+      const firstPlayerId = playerIds[0];
+      room.players[firstPlayerId].tagger = true;
+      room.players[firstPlayerId].x = 300;
+      room.players[firstPlayerId].y = 300;
+      for (const id of playerIds) {
+        if (id !== firstPlayerId) {
+          room.players[id].tagger = false;
+          room.players[id].x = 96;
+          room.players[id].y = 128;
+        }
+      }
+      // Notify all players in the room of their role
+      for (const id of playerIds) {
+        const playerSocket = io.sockets.sockets.get(id); // Find the socket instance by id
+        if(playerSocket){
+            const isTagger = room.players[id].tagger;
+            // Emit to the specific client's socket
+            io.to(id).emit('gameStarted', { tagger: isTagger });
+        }
+      }
+    }
+  });
 
   socket.on('keyPress', (payload) => {
     const room = gameState.rooms[roomId];
@@ -140,13 +183,17 @@ function gameLoop() {
       player.vx = 0;
       player.vy = 0;
 
-      if (player.activeKeys.has('Left')) player.vx = -PLAYER_SPEED;
-      if (player.activeKeys.has('Right')) player.vx = PLAYER_SPEED;
-      if (player.activeKeys.has('Up')) player.vy = -PLAYER_SPEED;
-      if (player.activeKeys.has('Down')) player.vy = PLAYER_SPEED;
+      if (player.activeKeys.has('Left') && !player.tagger) player.vx = -PLAYER_SPEED;
+      if (player.activeKeys.has('Right') && !player.tagger) player.vx = PLAYER_SPEED;
+      if (player.activeKeys.has('Up') && !player.tagger) player.vy = -PLAYER_SPEED;
+      if (player.activeKeys.has('Down') && !player.tagger) player.vy = PLAYER_SPEED;
+
+      if (player.activeKeys.has('Left') && player.tagger) player.vx = -TAGGER_SPEED;
+      if (player.activeKeys.has('Right') && player.tagger) player.vx = TAGGER_SPEED;
+      if (player.activeKeys.has('Up') && player.tagger) player.vy = -TAGGER_SPEED;
+      if (player.activeKeys.has('Down') && player.tagger) player.vy = TAGGER_SPEED;
 
 
-      // Calculate potential new position
       let currentX = player.x;
       let currentY = player.y;
       let nextX = currentX + player.vx * deltaTime;
@@ -157,12 +204,7 @@ function gameLoop() {
       let canMoveX = true; // Assume can move, prove otherwise
       let canMoveY = true; // Assume can move, prove otherwise
 
-    // if (player.vx !== 0 || player.vy !== 0) { // Only log if there's an attempt to move
-    //   console.log(`[DebugMove] Start: Client ${clientId}, ActiveKeys: ${Array.from(player.activeKeys)}, Pos: (${currentX.toFixed(2)}, ${currentY.toFixed(2)}), Vel: (${player.vx.toFixed(2)}, ${player.vy.toFixed(2)}), Next: (${nextX.toFixed(2)}, ${nextY.toFixed(2)})`);
-    // }
 
-      // --- Collision Detection ---
-      // Treat player as a 32x32 tile for collision
       const playerWidth = 32;
       const playerHeight = 32;
 
@@ -195,11 +237,9 @@ function gameLoop() {
       } else if (player.vx !== 0) {
           // Snap to edge of obstacle
           if (player.vx > 0) {
-              // Moving right: snap to left edge of obstacle - playerWidth
               const xTile = Math.floor((currentX + playerWidth - 1) / TILE_SIZE) + 1;
               finalX = xTile * TILE_SIZE - playerWidth;
           } else {
-              // Moving left: snap to right edge of obstacle
               const xTile = Math.floor(currentX / TILE_SIZE) - 1;
               finalX = (xTile + 1) * TILE_SIZE;
           }

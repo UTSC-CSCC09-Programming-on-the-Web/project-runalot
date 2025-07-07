@@ -3,20 +3,33 @@ import Stripe from "stripe";
 import dotenv from "dotenv";
 import express from "express";
 import { requireAuth } from "./auth-router.js";
+import { User } from "../models/user.js";
 
 dotenv.config(); // Load environment variables from .env file
 
 
-const stripeRouter = Router();
+const stripeRouter = function (io) {
 
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+  io.on('connection', (socket) => {
+    // The frontend sends `userId`, so we must use `userId` here.
+    const { userId } = socket.handshake.query;
+    if (!userId) {
+      console.error('User ID is missing in socket connection, disconnecting.');
+      socket.disconnect();
+      return;
+    }
+    // Join the client to a room named after their user ID.
+    socket.join(userId);
+    console.log(`User ${userId} connected and joined their socket room.`);
+  });
+
+  const router = Router();
+
+  const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Debug endpoint to test authentication
-stripeRouter.get('/debug-auth', (req, res) => {
-  console.log('=== DEBUG AUTH ENDPOINT ===');
-  console.log('Session:', req.session);
-  console.log('User:', req.user);
-  console.log('isAuthenticated:', req.isAuthenticated());
+router.get('/debug-auth', (req, res) => {
+
   res.json({
     session: req.session,
     user: req.user,
@@ -24,22 +37,12 @@ stripeRouter.get('/debug-auth', (req, res) => {
   });
 });
 
-stripeRouter.post('/create-checkout-session', requireAuth, async (req, res) => {
-  console.log('=== DEBUG: Stripe checkout session creation started ===');
-  console.log('Request body:', req.body);
-  console.log('User object:', req.user);
-  console.log('Environment check:', {
-    hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
-    hasPriceId: !!process.env.STRIPE_PRICE_ID,
-    stripeKeyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7)
-  });
+router.post('/create-checkout-session', express.json(), requireAuth, async (req, res) => {
+
 
   try {
     const { userId, userEmail, userName } = req.body;
     const authenticatedUser = req.user; // User from authentication middleware (OAuth profile)
-    
-    console.log('=== DEBUG: Extracting user info ===');
-    console.log('Raw authenticated user:', JSON.stringify(authenticatedUser, null, 2));
     
     // Extract user info from OAuth profile
     const profileUserId = userId || authenticatedUser.id;
@@ -52,12 +55,6 @@ stripeRouter.post('/create-checkout-session', requireAuth, async (req, res) => {
                        authenticatedUser.name ||
                        (authenticatedUser._json?.name) ||
                        `${authenticatedUser._json?.given_name || ''} ${authenticatedUser._json?.family_name || ''}`.trim();
-    
-    console.log('Creating checkout session for user:', {
-      userId: profileUserId,
-      userEmail: profileEmail,
-      userName: profileName
-    });
 
     // Validate required fields
     if (!profileEmail) {
@@ -70,7 +67,6 @@ stripeRouter.post('/create-checkout-session', requireAuth, async (req, res) => {
       return res.status(500).json({ error: 'Server configuration error: Missing price ID' });
     }
 
-    console.log('=== DEBUG: Creating/finding Stripe customer ===');
 
     // Create or retrieve customer in Stripe
     let customer;
@@ -83,7 +79,6 @@ stripeRouter.post('/create-checkout-session', requireAuth, async (req, res) => {
       
       if (existingCustomers.data.length > 0) {
         customer = existingCustomers.data[0];
-        console.log('Found existing customer:', customer.id);
       } else {
         // Create new customer
         customer = await stripe.customers.create({
@@ -97,7 +92,6 @@ stripeRouter.post('/create-checkout-session', requireAuth, async (req, res) => {
         console.log('Created new customer:', customer.id);
       }
     } catch (customerError) {
-      console.error('Error handling customer:', customerError);
       return res.status(500).json({ error: 'Failed to process customer information' });
     }
 
@@ -120,7 +114,6 @@ stripeRouter.post('/create-checkout-session', requireAuth, async (req, res) => {
       }
     });
 
-    console.log('Checkout session created successfully:', session.id);
     res.send({ clientSecret: session.client_secret });
   } catch (error) {
     console.error('Error creating checkout session:', error);
@@ -128,7 +121,7 @@ stripeRouter.post('/create-checkout-session', requireAuth, async (req, res) => {
   }
 });
 
-stripeRouter.post('/webhook', (req, res) => {
+router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
     let event;
@@ -146,14 +139,23 @@ stripeRouter.post('/webhook', (req, res) => {
         switch (event.type) {
             case 'checkout.session.completed':
                 const session = event.data.object;
-                console.log('Checkout session completed successfully:', {
-                    sessionId: session.id,
-                    customerId: session.customer,
+                const userId = session.metadata?.userId;
+
+                const clientPaid = await User.create({
                     userId: session.metadata?.userId,
-                    userEmail: session.metadata?.userEmail,
-                    userName: session.metadata?.userName
+                    email: session.metadata?.userEmail,
+                    name: session.metadata?.userName,
+                    customerId: session.customer,
+                    subscriptionId: session.subscription,
                 });
-                // Here you can update your database with the subscription info
+
+                if (io && userId && io.sockets.adapter.rooms[userId]) {
+                  io.to(userId).emit('checkout-completed', {
+                    message: 'Your subscription has been activated successfully!',
+                    userId: userId
+                  });
+                  console.log(`Sent 'checkout-completed' event to user: ${userId}`);
+                }
                 break;
 
             case 'customer.subscription.deleted':
@@ -190,5 +192,7 @@ stripeRouter.post('/webhook', (req, res) => {
     }
 });
 
+  return router;
+}
 
 export default stripeRouter;

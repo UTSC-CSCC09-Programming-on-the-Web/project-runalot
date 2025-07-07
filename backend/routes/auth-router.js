@@ -1,10 +1,14 @@
 import passport from 'passport';
 import express from 'express';
 import { Router } from 'express';
+import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 dotenv.config();
 
 const router = Router();
+
+router.use(bodyParser.urlencoded({ extended: false }));
+router.use(bodyParser.json());
 
 // Debug endpoint to test authentication
 router.get('/debug', (req, res) => {

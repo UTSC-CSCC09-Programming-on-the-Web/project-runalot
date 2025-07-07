@@ -276,26 +276,21 @@ class MainScene extends Phaser.Scene {
             console.warn('[MainScene HGSUpdate] Received invalid or empty gameState:', gameState);
             return;
         }
-        // console.log('[MainScene HGSUpdate] Handling gameState:', JSON.parse(JSON.stringify(gameState)));
 
         if (!this.localClientId) {
-            // console.warn('[MainScene HGSUpdate] localClientId is not set yet. Skipping player updates.');
             return;
         }
 
         const serverPlayers = gameState.players;
         const allServerPlayerIds = Object.keys(serverPlayers);
 
-        // Update local player
-        if (this.player && serverPlayers[this.localClientId]) { // Check if localClientId exists in serverPlayers
+        if (this.player && serverPlayers[this.localClientId]) {
             const playerData = serverPlayers[this.localClientId];
-            console.log(`[MainScene HGSUpdate] LocalPlayer (${this.localClientId}): ServerData: P(${playerData.x.toFixed(2)}, ${playerData.y.toFixed(2)}) V(${playerData.vx.toFixed(2)}, ${playerData.vy.toFixed(2)}). CurrentSprite: P(${this.player.x.toFixed(2)}, ${this.player.y.toFixed(2)})`);
 
             const positionChanged = Math.abs(this.player.x - playerData.x) > 0.1 || Math.abs(this.player.y - playerData.y) > 0.1; // Lowered threshold for logging
-            // console.log(`[MainScene HGSUpdate] LocalPlayer (${this.localClientId}): Position changed for tween? ${positionChanged}. DiffX: ${Math.abs(this.player.x - playerData.x)}, DiffY: ${Math.abs(this.player.y - playerData.y)}`);
 
             if (positionChanged) {
-                console.log(`[MainScene HGSUpdate] LocalPlayer (${this.localClientId}): CREATING TWEEN from (${this.player.x.toFixed(2)}, ${this.player.y.toFixed(2)}) to (${playerData.x.toFixed(2)}, ${playerData.y.toFixed(2)})`);
+                // console.log(`[MainScene HGSUpdate] LocalPlayer (${this.localClientId}): CREATING TWEEN from (${this.player.x.toFixed(2)}, ${this.player.y.toFixed(2)}) to (${playerData.x.toFixed(2)}, ${playerData.y.toFixed(2)})`);
                 this.tweens.add({
                     targets: this.player,
                     x: playerData.x,

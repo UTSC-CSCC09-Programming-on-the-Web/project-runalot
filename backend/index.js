@@ -93,7 +93,11 @@ const io = new Server(server, {
   }
 });
 
+const stripeNs = io.of("/stripe");
+
 app.use('/game', gameRouter(io));
+
+app.use("/stripe", stripeRouter(stripeNs));
 
 try {
   await sequelize.authenticate();

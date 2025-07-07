@@ -7,6 +7,7 @@ const useSocket = (uri, query) => {
   useEffect(() => {
     const newSocket = io(uri, {
       // transports: ['websocket'], // Force websocket connection
+      withCredentials: true, // Ensure cookies are sent with requests
       query,
     });
 
