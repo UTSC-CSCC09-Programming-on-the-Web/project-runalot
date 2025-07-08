@@ -23,6 +23,20 @@ export default function WaitingRoom() {
   const [socket, setSocket] = useState(null);
   const [clientId, setClientId] = useState('');
   const [inputRoomId, setInputRoomId] = useState('');
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isWaitingForRoomCreation, setIsWaitingForRoomCreation] = useState(false);
+
+  // Generate a 6-letter random room ID
+  const generateRoomId = () => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    console.log(`Generated room ID: ${result}`);
+    return result;
+  };
 
 
   // Generate client ID from user info
@@ -47,6 +61,11 @@ export default function WaitingRoom() {
       socketConnection.on('roomUpdate', (data) => {
         setPlayersInRoom(data.players || []);
         setIsHost(data.host === clientId);
+        // Room creation successful if we receive room update while waiting
+        if (isWaitingForRoomCreation) {
+          setIsWaitingForRoomCreation(false);
+          setGameState('ready');
+        }
       });
 
       // Listen for game start
@@ -63,26 +82,49 @@ export default function WaitingRoom() {
         console.log(`Player ${data.playerId} left the room`);
       });
 
+      // Listen for room join errors
+      socketConnection.on('roomJoinError', (data) => {
+        console.error('Room join error:', data.error);
+        setErrorMessage(data.message || 'Failed to join room');
+        // Reset to waiting state
+        setGameState('waiting');
+        setRoomId('');
+        setPlayersInRoom([]);
+        setIsHost(false);
+        setSocket(null);
+      });
+
+      // Listen for room creation errors
+      socketConnection.on('roomCreateError', (data) => {
+        createRoom();
+      });
+
       // Now emit joinWaitingRoom AFTER socket is set up
       socketConnection.emit('joinWaitingRoom', {
         roomId,
         clientId,
-        playerName: user?.displayName || user?.name || 'Anonymous'
+        playerName: user?.displayName || user?.name || 'Anonymous',
+        isCreating: isCreatingRoom
       });
     }
-  }, [socketConnection, roomId, clientId, user]);
+  }, [socketConnection, roomId, clientId, user, isCreatingRoom]);
 
   const createRoom = () => {
-    const newRoomId = `room_${Date.now()}`;
+    const newRoomId = generateRoomId();
     setRoomId(newRoomId);
     setIsHost(true);
-    setGameState('ready');
+    setIsCreatingRoom(true);
+    setIsWaitingForRoomCreation(true);
+    setErrorMessage(''); // Clear any previous errors
+    // Don't set gameState to 'ready' yet - wait for server confirmation
   };
 
   const joinRoom = () => {
-    const trimmedRoomId = inputRoomId.trim();
+    const trimmedRoomId = inputRoomId.trim().toUpperCase();
     if (trimmedRoomId && clientId) {
       setRoomId(trimmedRoomId);
+      setIsCreatingRoom(false);
+      setErrorMessage(''); // Clear any previous errors
       setGameState('ready');
     }
   };
@@ -102,6 +144,9 @@ export default function WaitingRoom() {
     setPlayersInRoom([]);
     setIsHost(false);
     setSocket(null);
+    setIsCreatingRoom(false);
+    setIsWaitingForRoomCreation(false);
+    setErrorMessage('');
   };
 
   const goHome = () => {
@@ -170,6 +215,12 @@ export default function WaitingRoom() {
             </div>
             
             <div className="space-y-4">
+              {errorMessage && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                  <p className="text-sm">{errorMessage}</p>
+                </div>
+              )}
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Room ID
@@ -193,9 +244,10 @@ export default function WaitingRoom() {
                 </button>
                 <button
                   onClick={createRoom}
-                  className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300"
+                  disabled={isWaitingForRoomCreation}
+                  className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition duration-300"
                 >
-                  Create Room
+                  {isWaitingForRoomCreation ? 'Creating Room...' : 'Create Room'}
                 </button>
               </div>
             </div>

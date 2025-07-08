@@ -85,11 +85,31 @@ io.on('connection', (socket) => {
   
   // Handle waiting room events
   socket.on('joinWaitingRoom', (data) => {
-    const { roomId, clientId, playerName } = data;
-    console.log(`Player ${clientId} (${playerName}) joining waiting room ${roomId}`);
+    const { roomId, clientId, playerName, isCreating } = data;
+    console.log(`Player ${clientId} (${playerName}) ${isCreating ? 'creating' : 'joining'} waiting room ${roomId}`);
     
-    // Create waiting room if it doesn't exist
-    if (!gameState.waitingRooms[roomId]) {
+    // Check if room exists when trying to join (not create)
+    if (!isCreating && !gameState.waitingRooms[roomId]) {
+      console.log(`Room ${roomId} does not exist for player ${clientId}`);
+      socket.emit('roomJoinError', { 
+        error: 'Room does not exist',
+        message: `Room "${roomId}" was not found. Please check the room ID or create a new room.`
+      });
+      return;
+    }
+    
+    // When creating, check if room ID is already in use
+    if (isCreating && gameState.waitingRooms[roomId]) {
+      console.log(`Room ${roomId} already exists for player ${clientId}`);
+      socket.emit('roomCreateError', { 
+        error: 'Room already exists',
+        message: `Room "${roomId}" is already in use. Please try creating a new room.`
+      });
+      return;
+    }
+    
+    // Create waiting room if it doesn't exist and user is creating
+    if (isCreating && !gameState.waitingRooms[roomId]) {
       gameState.waitingRooms[roomId] = {
         players: [],
         host: clientId,
