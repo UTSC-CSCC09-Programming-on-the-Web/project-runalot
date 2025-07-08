@@ -17,11 +17,11 @@ class BootScene extends Phaser.Scene {
     }
 
     preload() {
-        const tilesetURL = '/assets/tilesets/tileset.png'; // Using the same name as before for simplicity
+        const tilesetURL = '/assets/tilesets/tileset.png';
         console.log(`Initiating preload for your 8x8 tileset (32x32 tiles) from: ${tilesetURL}`);
-        this.load.spritesheet('tileset_custom', tilesetURL, { // New key: 'tileset_custom'
-            frameWidth: 32, // Your tile width
-            frameHeight: 32  // Your tile height
+        this.load.spritesheet('tileset_custom', tilesetURL, {
+            frameWidth: 32,
+            frameHeight: 32
         });
         this.load.spritesheet('player', '/assets/sprites/george.png', {
             frameWidth: 48,
@@ -63,7 +63,6 @@ const OBSTACLE_MATRIX: number[][] = [
 [304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304]
 ];
 
-// Main Scene for basic game elements
 class MainScene extends Phaser.Scene {
     private player?: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody; // Local player sprite
     private otherPlayers: Map<string, Phaser.Types.Physics.Arcade.SpriteWithDynamicBody>; // Sprites for other players
@@ -105,8 +104,8 @@ class MainScene extends Phaser.Scene {
         const tilePixelHeight = 32;
 
         const targetTileIndex = 1;
-        const borderTileIndex = 304; // New border tile index
-        const obstacleTileIndex = 41; // Obstacle tile index
+        const borderTileIndex = 304;
+        const obstacleTileIndex = 41;
 
         // Generate base layer (ground)
         const groundData: number[][] = [];
@@ -118,7 +117,6 @@ class MainScene extends Phaser.Scene {
             groundData.push(row);
         }
 
-        // Use OBSTACLE_MATRIX for obstacles
         const obstacleData: number[][] = OBSTACLE_MATRIX.map(row => [...row]);
 
         // Create the orthogonal tilemap
@@ -138,20 +136,17 @@ class MainScene extends Phaser.Scene {
         // Enable pixel rounding to avoid subpixel rendering seams
         this.cameras.main.roundPixels = true;
 
-        // Create ground layer (base)
         const groundLayer = map.createBlankLayer('ground', tileset, 0, 0);
         groundLayer?.putTilesAt(groundData, 0, 0);
         groundLayer?.setDepth(0);
 
-        // Create obstacle+border layer
+
         const obstacleLayer = map.createBlankLayer('obstacles', tileset, 0, 0);
         obstacleLayer?.putTilesAt(obstacleData, 0, 0);
-        // Recalculate collision after putTilesAt
         obstacleLayer?.setCollision([borderTileIndex, obstacleTileIndex], true, true);
         obstacleLayer?.setDepth(1);
-        obstacleLayer?.setAlpha(1); // Ensure obstacle layer is fully opaque
+        obstacleLayer?.setAlpha(1);
 
-        // World dimensions are simpler: mapWidthInTiles * tilePixelWidth
         this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
         this.cameras.main.setZoom(1.6);
 
@@ -159,16 +154,18 @@ class MainScene extends Phaser.Scene {
             throw new Error('Tileset failed to load.');
         }
 
-        // Use scale so the sprite visually fits a 32x32 tile
+
         const player = this.physics.add.sprite(96, 128, 'player');
-        player.setOrigin(0, 0); // Top-left origin so (x, y) matches backend
-        player.setDisplaySize(32, 32); // Visually fit in a 32x32 tile
-        player.body.setSize(32, 32); // Physics body is 32x32
-        player.body.setOffset(8, 8); // Center body in 48x48 sprite (offset = (48-32)/2)
+        player.setOrigin(0, 0);
+        player.setDisplaySize(32, 32);
+        player.body.setSize(32, 32);
+        player.body.setOffset(8, 8);
+        
         this.cameras.main.startFollow(player);
+        
         this.player = player;
 
-        // Animations for each direction, 4 frames each
+
         this.anims.create({
             key: 'down',
             frames: [{key: 'player', frame: 0}, {key: 'player', frame: 4}, {key: 'player', frame: 8}, {key: 'player', frame: 12}],
@@ -195,13 +192,10 @@ class MainScene extends Phaser.Scene {
         });
 
 
-        this.cursors = this.input.keyboard?.createCursorKeys(); // Keep for easy access to key states if needed, but direct event handling is better for press/release.
+        this.cursors = this.input.keyboard?.createCursorKeys();
 
 
-        //this.mapMatrix = obstacleData.map(row => [...row]);
-        // this.playerPosition = { x: player.x, y: player.y }; // Player position will be updated by server
 
-        // Setup keyboard event handling for sending messages
         this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
             this.handleKeyEvent(event.key, 'keyPress');
         });
@@ -212,7 +206,7 @@ class MainScene extends Phaser.Scene {
     }
 
     private sendKeySocketMessage(key: string, type: 'keyPress' | 'keyRelease') {
-        // Always get the latest socket instance from the registry before using it.
+
         const socket = this.game.registry.get('socket');
 
         if (socket && socket.connected) {
@@ -258,49 +252,36 @@ class MainScene extends Phaser.Scene {
 
 
     update(time: number, delta: number) {
-        // First, process any pending server update.
         const currentServerUpdate = this.lastServerUpdate;
-        // console.log(`[MainScene Update] Processing server update: ${currentServerUpdate ? JSON.stringify(currentServerUpdate) : 'No update'}`);
         if (currentServerUpdate) {
             this.handleGameStateUpdate(currentServerUpdate);
-            this.lastServerUpdate = null; // Clear the update after processing
+            this.lastServerUpdate = null;
         }
-
-        // After handling server updates, you can apply local-only logic if needed,
-        // but for a server-authoritative model, it's often best to rely on the server's state.
-        // The handleGameStateUpdate method now correctly handles animations based on server velocity.
     }
 
     private handleGameStateUpdate(gameState: any) {
         if (!gameState || !gameState.players) {
-            console.warn('[MainScene HGSUpdate] Received invalid or empty gameState:', gameState);
             return;
         }
-        // console.log('[MainScene HGSUpdate] Handling gameState:', JSON.parse(JSON.stringify(gameState)));
 
         if (!this.localClientId) {
-            // console.warn('[MainScene HGSUpdate] localClientId is not set yet. Skipping player updates.');
             return;
         }
 
         const serverPlayers = gameState.players;
         const allServerPlayerIds = Object.keys(serverPlayers);
 
-        // Update local player
-        if (this.player && serverPlayers[this.localClientId]) { // Check if localClientId exists in serverPlayers
+        if (this.player && serverPlayers[this.localClientId]) {
             const playerData = serverPlayers[this.localClientId];
-            console.log(`[MainScene HGSUpdate] LocalPlayer (${this.localClientId}): ServerData: P(${playerData.x.toFixed(2)}, ${playerData.y.toFixed(2)}) V(${playerData.vx.toFixed(2)}, ${playerData.vy.toFixed(2)}). CurrentSprite: P(${this.player.x.toFixed(2)}, ${this.player.y.toFixed(2)})`);
 
             const positionChanged = Math.abs(this.player.x - playerData.x) > 0.1 || Math.abs(this.player.y - playerData.y) > 0.1; // Lowered threshold for logging
-            // console.log(`[MainScene HGSUpdate] LocalPlayer (${this.localClientId}): Position changed for tween? ${positionChanged}. DiffX: ${Math.abs(this.player.x - playerData.x)}, DiffY: ${Math.abs(this.player.y - playerData.y)}`);
 
             if (positionChanged) {
-                console.log(`[MainScene HGSUpdate] LocalPlayer (${this.localClientId}): CREATING TWEEN from (${this.player.x.toFixed(2)}, ${this.player.y.toFixed(2)}) to (${playerData.x.toFixed(2)}, ${playerData.y.toFixed(2)})`);
                 this.tweens.add({
                     targets: this.player,
                     x: playerData.x,
                     y: playerData.y,
-                    duration: 100, // Slightly less than typical server tick interval for catch-up
+                    duration: 100,
                     ease: 'Linear'
                 });
             } else {
@@ -367,7 +348,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameInstanceRef = useRef<Phaser.Game | null>(null);
 
-    // Effect 1: Handles Phaser game instance creation and destruction
     useEffect(() => {
         if (gameContainerRef.current && !gameInstanceRef.current) {
             const mapTilesWide = 40;
@@ -408,9 +388,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
                 gameInstanceRef.current = null;
             }
         };
-    }, []); // Runs once on mount
+    }, []);
 
-    // Effect 2: Handles socket connection and event listeners
     useEffect(() => {
         if (!socketIo) {
             console.log('[PhaserGame] Socket not available yet.');
@@ -422,10 +401,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
         const tryInjectSocket = () => {
             if (gameInstanceRef.current && socketIo.connected) {
                 gameInstanceRef.current.registry.set('socket', socketIo);
-                console.log('[PhaserGame] Socket successfully injected into Phaser registry.');
-                return true; // Injection successful
+                return true;
             }
-            return false; // Not ready yet
+            return false;
         };
 
         const pollForInjection = () => {
@@ -434,7 +412,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
             }
         };
 
-        // Start polling
         pollForInjection();
 
         const onConnect = () => {

@@ -17,8 +17,35 @@ import {authRouter} from './routes/auth-router.js';
 
 const app = express();
 
+// Passport configuration
+passport.serializeUser((user, done) => {
+  done(null, user);
+});
+
+passport.deserializeUser((user, done) => {
+  done(null, user);
+});
+
+// GitHub Strategy
+passport.use(new GitHubStrategy({
+  clientID: process.env.GITHUB_ID,
+  clientSecret: process.env.GITHUB_SECRET,
+  callbackURL: `${process.env.BACKEND_URL}/auth/github/callback`
+}, (accessToken, refreshToken, profile, done) => {
+  return done(null, profile);
+}));
+
+// Google Strategy
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_ID,
+  clientSecret: process.env.GOOGLE_SECRET,
+  callbackURL: `${process.env.BACKEND_URL}/auth/google/callback`
+}, (accessToken, refreshToken, profile, done) => {
+  return done(null, profile);
+}));
+
 // Session configuration
-app.use(session({
+const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
@@ -26,7 +53,9 @@ app.use(session({
     secure: false, // Set to true in production with HTTPS
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
-}));
+});
+
+app.use(sessionMiddleware);
 
 
 app.use(cors({
@@ -34,21 +63,14 @@ app.use(cors({
   credentials: true
 }));
 
-
-app.use("/stripe", stripeRouter);
-
-// Initialize Passport
+// Initialize Passport BEFORE any routes that need authentication
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Routes
+// Routes (after Passport initialization)
 app.use('/auth', authRouter);
 
 
-app.use(function (req, res, next) {
-  console.log("HTTP request", req.method, req.url, req.body);
-  next();
-});
 
 // Create HTTP server and Socket.io
 const server = http.createServer(app);
@@ -61,7 +83,11 @@ const io = new Server(server, {
   }
 });
 
+const stripeNs = io.of("/stripe");
+
 app.use('/game', gameRouter(io));
+
+app.use("/stripe", stripeRouter(stripeNs));
 
 try {
   await sequelize.authenticate();

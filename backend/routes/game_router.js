@@ -2,7 +2,11 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import { Router } from 'express';
+import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
+import { where } from 'sequelize';
+import {User} from '../models/user.js';
+import { requireAuth } from './auth-router.js';
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -10,8 +14,13 @@ export default function gameRouter(io){
 
 const tagRouter = Router();
 
+tagRouter.use(bodyParser.urlencoded({ extended: false }));
+tagRouter.use(bodyParser.json());
+
+
 // --- Game Configuration ---
-const PLAYER_SPEED = 220; // pixels per second
+const PLAYER_SPEED = 180;
+const TAGGER_SPEED = 200;
 const SERVER_TICK_RATE = 1000 / 60; // 60 FPS
 const TILE_SIZE = 32; // pixels
 
@@ -52,6 +61,22 @@ let gameState = {
   waitingRooms: {}, // New: waiting rooms separate from active game rooms
 };
 
+
+tagRouter.get('/create-room', requireAuth, (req, res) => {
+  for (let i = 0; i < 10; i++) {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    const roomId = result;
+    const isThere = roomId in gameState.waitingRooms;
+    if (!isThere) {
+      return res.json({ roomId: roomId });
+    }
+  }
+});
+
 // Function to broadcast waiting room updates
 const broadcastWaitingRoomUpdate = (roomId) => {
   const waitingRoom = gameState.waitingRooms[roomId];
@@ -84,7 +109,7 @@ io.on('connection', (socket) => {
   console.log(`Client ${clientId} connected to room ${roomId}`);
   
   // Handle waiting room events
-  socket.on('joinWaitingRoom', (data) => {
+  socket.on('joinWaitingRoom', async (data) => {
     const { roomId, clientId, playerName, isCreating } = data;
     console.log(`Player ${clientId} (${playerName}) ${isCreating ? 'creating' : 'joining'} waiting room ${roomId}`);
     
@@ -94,6 +119,20 @@ io.on('connection', (socket) => {
       socket.emit('roomJoinError', { 
         error: 'Room does not exist',
         message: `Room "${roomId}" was not found. Please check the room ID or create a new room.`
+      });
+      return;
+    }
+
+    const ClientJoined = await User.findOne({
+      where: { userId: String(clientId) }
+    });
+
+
+    // TODO: Need to have the stripe authentication check here
+    if(!ClientJoined || ClientJoined.inRoom){
+      socket.emit('roomJoinError', { 
+        error: 'Client is already in a room',
+        message: `You are already in a room.`
       });
       return;
     }
@@ -139,7 +178,7 @@ io.on('connection', (socket) => {
     socket.to(`waiting_${roomId}`).emit('playerJoined', { playerId: clientId, playerName });
   });
   
-  socket.on('leaveWaitingRoom', (data) => {
+  socket.on('leaveWaitingRoom', async (data) => {
     const { roomId, clientId } = data;
     console.log(`Player ${clientId} leaving waiting room ${roomId}`);
     
@@ -147,6 +186,15 @@ io.on('connection', (socket) => {
     if (waitingRoom) {
       // Remove player from waiting room
       waitingRoom.players = waitingRoom.players.filter(p => p.id !== clientId);
+
+      const removePlayer = await User.findOne({
+        where: { userId: String(clientId) }
+      });
+
+      if(removePlayer){
+        removePlayer.inRoom = false;
+        await removePlayer.save();
+      }
       
       // If host left, assign new host
       if (waitingRoom.host === clientId && waitingRoom.players.length > 0) {
@@ -191,6 +239,7 @@ io.on('connection', (socket) => {
           vx: 0,
           vy: 0,
           activeKeys: new Set(),
+          tagger: false,
         };
       });
       
@@ -214,12 +263,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Original game logic - only join game room if not in waiting room
   socket.join(roomId); // Client joins the specific room
 
   if (!gameState.rooms[roomId]) {
     gameState.rooms[roomId] = {
       players: {},
+      started: false
     };
   }
   gameState.rooms[roomId].players[clientId] = {
@@ -228,10 +277,47 @@ io.on('connection', (socket) => {
     vx: 0,
     vy: 0,
     activeKeys: new Set(),
+    tagger: false
   };
 
   socket.emit('welcome', { clientId, message: 'Server working' });
   broadcastGameState();
+
+  socket.on('startGame', () => {
+    const room = gameState.rooms[roomId];
+    if (!room || room.started) {
+      // Game already started or room doesn't exist
+      return;
+    }
+
+    console.log(`Client ${clientId} requested to start the game in room ${roomId}`);
+    room.started = true; // Mark the game as started
+
+    const playerIds = Object.keys(room.players);
+    if (playerIds.length > 0) {
+      // Your existing logic to assign roles and positions
+      const firstPlayerId = playerIds[0];
+      room.players[firstPlayerId].tagger = true;
+      room.players[firstPlayerId].x = 300;
+      room.players[firstPlayerId].y = 300;
+      for (const id of playerIds) {
+        if (id !== firstPlayerId) {
+          room.players[id].tagger = false;
+          room.players[id].x = 96;
+          room.players[id].y = 128;
+        }
+      }
+      // Notify all players in the room of their role
+      for (const id of playerIds) {
+        const playerSocket = io.sockets.sockets.get(id); // Find the socket instance by id
+        if(playerSocket){
+            const isTagger = room.players[id].tagger;
+            // Emit to the specific client's socket
+            io.to(id).emit('gameStarted', { tagger: isTagger });
+        }
+      }
+    }
+  });
 
   socket.on('keyPress', (payload) => {
     const room = gameState.rooms[roomId];
@@ -310,13 +396,17 @@ function gameLoop() {
       player.vx = 0;
       player.vy = 0;
 
-      if (player.activeKeys.has('Left')) player.vx = -PLAYER_SPEED;
-      if (player.activeKeys.has('Right')) player.vx = PLAYER_SPEED;
-      if (player.activeKeys.has('Up')) player.vy = -PLAYER_SPEED;
-      if (player.activeKeys.has('Down')) player.vy = PLAYER_SPEED;
+      if (player.activeKeys.has('Left') && !player.tagger) player.vx = -PLAYER_SPEED;
+      if (player.activeKeys.has('Right') && !player.tagger) player.vx = PLAYER_SPEED;
+      if (player.activeKeys.has('Up') && !player.tagger) player.vy = -PLAYER_SPEED;
+      if (player.activeKeys.has('Down') && !player.tagger) player.vy = PLAYER_SPEED;
+
+      if (player.activeKeys.has('Left') && player.tagger) player.vx = -TAGGER_SPEED;
+      if (player.activeKeys.has('Right') && player.tagger) player.vx = TAGGER_SPEED;
+      if (player.activeKeys.has('Up') && player.tagger) player.vy = -TAGGER_SPEED;
+      if (player.activeKeys.has('Down') && player.tagger) player.vy = TAGGER_SPEED;
 
 
-      // Calculate potential new position
       let currentX = player.x;
       let currentY = player.y;
       let nextX = currentX + player.vx * deltaTime;
@@ -324,15 +414,10 @@ function gameLoop() {
 
       let finalX = currentX;
       let finalY = currentY;
-      let canMoveX = true; // Assume can move, prove otherwise
-      let canMoveY = true; // Assume can move, prove otherwise
+      let canMoveX = true;
+      let canMoveY = true;
 
-    // if (player.vx !== 0 || player.vy !== 0) { // Only log if there's an attempt to move
-    //   console.log(`[DebugMove] Start: Client ${clientId}, ActiveKeys: ${Array.from(player.activeKeys)}, Pos: (${currentX.toFixed(2)}, ${currentY.toFixed(2)}), Vel: (${player.vx.toFixed(2)}, ${player.vy.toFixed(2)}), Next: (${nextX.toFixed(2)}, ${nextY.toFixed(2)})`);
-    // }
 
-      // --- Collision Detection ---
-      // Treat player as a 32x32 tile for collision
       const playerWidth = 32;
       const playerHeight = 32;
 
@@ -348,7 +433,6 @@ function gameLoop() {
           }
           const xTile = Math.max(0, Math.min(MAP_WIDTH_TILES - 1, Math.floor(xLeadingEdge / TILE_SIZE)));
 
-          // Check tiles at player's current top and bottom Y for the new X position
           const yTileTop = Math.max(0, Math.min(MAP_HEIGHT_TILES - 1, Math.floor(currentY / TILE_SIZE)));
           const yTileBottom = Math.max(0, Math.min(MAP_HEIGHT_TILES - 1, Math.floor((currentY + playerHeight - 1) / TILE_SIZE)));
 
@@ -365,29 +449,23 @@ function gameLoop() {
       } else if (player.vx !== 0) {
           // Snap to edge of obstacle
           if (player.vx > 0) {
-              // Moving right: snap to left edge of obstacle - playerWidth
               const xTile = Math.floor((currentX + playerWidth - 1) / TILE_SIZE) + 1;
               finalX = xTile * TILE_SIZE - playerWidth;
           } else {
-              // Moving left: snap to right edge of obstacle
               const xTile = Math.floor(currentX / TILE_SIZE) - 1;
               finalX = (xTile + 1) * TILE_SIZE;
           }
       }
 
-      // Check Y-axis movement
       if (player.vy !== 0) {
           let yLeadingEdge;
           if (player.vy > 0) {
-              // Moving down: bottom edge (no -1)
               yLeadingEdge = nextY + playerHeight - 1;
           } else {
-              // Moving up: top edge
               yLeadingEdge = nextY;
           }
           const yTile = Math.max(0, Math.min(MAP_HEIGHT_TILES - 1, Math.floor(yLeadingEdge / TILE_SIZE)));
 
-          // Check tiles at player's resolved X (finalX) left and right for the new Y position
           const xTileLeft = Math.max(0, Math.min(MAP_WIDTH_TILES - 1, Math.floor(finalX / TILE_SIZE)));
           const xTileRight = Math.max(0, Math.min(MAP_WIDTH_TILES - 1, Math.floor((finalX + playerWidth - 1) / TILE_SIZE)));
 
@@ -402,9 +480,7 @@ function gameLoop() {
       if (canMoveY) {
           finalY = nextY;
       } else if (player.vy !== 0) {
-          // Snap to edge of obstacle
           if (player.vy > 0) {
-              // Moving down: snap to top edge of obstacle - playerHeight
               const yTile = Math.floor((currentY + playerHeight - 1) / TILE_SIZE) + 1;
               finalY = yTile * TILE_SIZE - playerHeight;
           } else {
@@ -419,6 +495,56 @@ function gameLoop() {
       player.x = Math.round(finalX);
       player.y = Math.round(finalY);
     });
+
+
+    // --- Tagging Logic ---
+    const playerIds = Object.keys(room.players);
+    const taggerIds = playerIds.filter(id => room.players[id].tagger);
+    const nonTaggerIds = playerIds.filter(id => !room.players[id].tagger);
+
+    // Only one tagger allowed for this logic
+    if (taggerIds.length === 1) {
+      const taggerId = taggerIds[0];
+      const tagger = room.players[taggerId];
+      const playerWidth = 32;
+      const playerHeight = 32;
+
+      for (const otherId of nonTaggerIds) {
+        const otherPlayer = room.players[otherId];
+        // AABB collision detection
+        if (
+          tagger.x < otherPlayer.x + playerWidth &&
+          tagger.x + playerWidth > otherPlayer.x &&
+          tagger.y < otherPlayer.y + playerHeight &&
+          tagger.y + playerHeight > otherPlayer.y
+        ) {
+          // Tag occurred! Show game over to tagged user, then disconnect
+          const playerSocket = io.sockets.sockets.get(otherId);
+          if (playerSocket) {
+            playerSocket.emit('gameOver', { message: 'You were tagged! Game over.' });
+            setTimeout(() => playerSocket.disconnect(true), 1000); // Give time for message
+          }
+          delete room.players[otherId];
+          break; // Only one tag per frame
+        }
+      }
+
+      // After possible tag, check if only taggers remain
+      const remainingIds = Object.keys(room.players);
+      const remainingTaggers = remainingIds.filter(id => room.players[id].tagger);
+      if (remainingTaggers.length === remainingIds.length && remainingIds.length > 0) {
+        // All remaining are taggers, they win
+        for (const id of remainingTaggers) {
+          const playerSocket = io.sockets.sockets.get(id);
+          if (playerSocket) {
+            playerSocket.emit('winGame', { message: 'You win! All others have been tagged.' });
+            setTimeout(() => playerSocket.disconnect(true), 1000);
+          }
+        }
+        // Clean up room
+        delete gameState.rooms[roomId];
+      }
+    }
 
     broadcastGameState(roomId);
   });

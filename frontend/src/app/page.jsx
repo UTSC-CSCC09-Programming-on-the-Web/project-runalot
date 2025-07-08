@@ -1,6 +1,6 @@
 "use client";
 
-import CheckoutForm from "./stripe_checkout";
+import CheckoutForm from "./components/stripeCheckout";
 import Navbar from "./components/Navbar";
 export default function Home() {
 

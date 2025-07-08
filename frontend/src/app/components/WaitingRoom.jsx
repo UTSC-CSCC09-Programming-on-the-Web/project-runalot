@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import useSocket from '@/hooks/useSocket';
 import dynamic from 'next/dynamic';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Dynamically import the PhaserGame component with SSR turned off
 const PhaserGameNoSSR = dynamic(
@@ -26,17 +29,6 @@ export default function WaitingRoom() {
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isWaitingForRoomCreation, setIsWaitingForRoomCreation] = useState(false);
-
-  // Generate a 6-letter random room ID
-  const generateRoomId = () => {
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-      result += letters.charAt(Math.floor(Math.random() * letters.length));
-    }
-    console.log(`Generated room ID: ${result}`);
-    return result;
-  };
 
 
   // Generate client ID from user info
@@ -109,15 +101,28 @@ export default function WaitingRoom() {
     }
   }, [socketConnection, roomId, clientId, user, isCreatingRoom]);
 
-  const createRoom = () => {
-    const newRoomId = generateRoomId();
-    setRoomId(newRoomId);
-    setIsHost(true);
-    setIsCreatingRoom(true);
-    setIsWaitingForRoomCreation(true);
-    setErrorMessage(''); // Clear any previous errors
-    // Don't set gameState to 'ready' yet - wait for server confirmation
+  const createRoom = async () => {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/game/create-room`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    if(!response.ok) {
+      setErrorMessage('Failed to create room');
+      setGameState('waiting');
+      setRoomId('');
+      setPlayersInRoom([]);
+      setIsHost(false);
+      setSocket(null);
+    } else{
+      const data = await response.json();
+      setRoomId(data.roomId);
+      setIsHost(true);
+      setIsCreatingRoom(true);
+      setIsWaitingForRoomCreation(true);
+      setErrorMessage('');
+    }
   };
+
 
   const joinRoom = () => {
     const trimmedRoomId = inputRoomId.trim().toUpperCase();
@@ -167,7 +172,8 @@ export default function WaitingRoom() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="text-center max-w-md mx-auto p-8">
+        <div className="text-center flex flex-col items-center justify-center max-w-md mx-auto p-8">
+          <img src="/assets/icon/error.svg" alt="Error" className="w-20 h-20 mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Authentication Required</h2>
           <p className="text-gray-600 mb-6">Please log in to join the game.</p>
           <button
