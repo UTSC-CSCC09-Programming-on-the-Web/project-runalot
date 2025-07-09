@@ -5,7 +5,7 @@ import { Router } from 'express';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import { where } from 'sequelize';
-import {User} from '../models/user.js';
+import {User} from '../models/User.js';
 import { requireAuth } from './auth-router.js';
 
 dotenv.config(); // Load environment variables from .env file
