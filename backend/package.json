@@ -25,6 +25,7 @@
     "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
     "router": "^2.2.0",
+    "sequelize": "^6.37.7",
     "socket.io": "^4.8.1",
     "stripe": "^18.2.1"
   },
