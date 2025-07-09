@@ -12,27 +12,19 @@ services:
       - ./certs:/etc/nginx/certs
       - ./vhost:/etc/nginx/vhost.d
       - ./html:/usr/share/nginx/html
-    # Add these labels to identify this container to acme-companion
-    labels:
-      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy=true"
-
   nginx-proxy-acme:
     image: nginxproxy/acme-companion
     container_name: nginx-proxy-acme
-    volumes_from:
-      - nginx-proxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./certs:/etc/nginx/certs
+      - ./vhost:/etc/nginx/vhost.d
+      - ./html:/usr/share/nginx/html
       - ./acme:/etc/acme.sh
     environment:
       - DEFAULT_EMAIL=shubham.garg@mail.utoronto.ca
-      # Add this to explicitly tell acme-companion which container is nginx-proxy
-      - NGINX_PROXY_CONTAINER=nginx-proxy
-    depends_on:
-      - nginx-proxy
-
   frontend:
-    image: ghcr.io/utsc-cscc09-programming-on-the-web/frontend-taggit
+    image: ghcr.io/utsc-cscc09-programming-on-the-web/frontend-taggit:latest
     container_name: frontend
     restart: always
     expose:
@@ -42,12 +34,8 @@ services:
       - LETSENCRYPT_HOST=taggit.tech
     env_file:
       - ./frontend/.env.local
-    depends_on:
-      - nginx-proxy
-      - nginx-proxy-acme
-
   backend:
-    image: ghcr.io/utsc-cscc09-programming-on-the-web/backend-taggit
+    image: ghcr.io/utsc-cscc09-programming-on-the-web/backend-taggit:latest
     container_name: backend
     restart: always
     expose:
@@ -57,6 +45,3 @@ services:
       - LETSENCRYPT_HOST=api.taggit.tech
     env_file:
       - ./backend/.env
-    depends_on:
-      - nginx-proxy
-      - nginx-proxy-acme
