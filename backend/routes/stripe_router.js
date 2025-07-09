@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import dotenv from "dotenv";
 import express from "express";
 import { requireAuth } from "./auth-router.js";
-import { User } from "../models/user.js";
+import { User } from "../models/User.js";
 
 dotenv.config(); // Load environment variables from .env file
 
