@@ -164,7 +164,8 @@ io.on('connection', (socket) => {
       waitingRoom.players.push({
         id: clientId,
         name: playerName,
-        isHost: clientId === waitingRoom.host
+        isHost: clientId === waitingRoom.host,
+        socketId: socket.id // Store the socket ID
       });
     }
     
@@ -240,6 +241,7 @@ io.on('connection', (socket) => {
           vy: 0,
           activeKeys: new Set(),
           tagger: false,
+          socketId: player.socketId // Carry over socketId
         };
       });
       
@@ -277,7 +279,8 @@ io.on('connection', (socket) => {
     vx: 0,
     vy: 0,
     activeKeys: new Set(),
-    tagger: false
+    tagger: false,
+    socketId: socket.id // Store socketId
   };
 
   socket.emit('welcome', { clientId, message: 'Server working' });
@@ -295,25 +298,31 @@ io.on('connection', (socket) => {
 
     const playerIds = Object.keys(room.players);
     if (playerIds.length > 0) {
-      // Your existing logic to assign roles and positions
-      const firstPlayerId = playerIds[0];
-      room.players[firstPlayerId].tagger = true;
-      room.players[firstPlayerId].x = 300;
-      room.players[firstPlayerId].y = 300;
-      for (const id of playerIds) {
-        if (id !== firstPlayerId) {
-          room.players[id].tagger = false;
-          room.players[id].x = 96;
-          room.players[id].y = 128;
-        }
+      // Assign up to two taggers
+      const taggerCount = Math.min(2, Math.floor(playerIds.length/2));
+      for (let i = 0; i < taggerCount; i++) {
+        const taggerId = playerIds[i];
+        room.players[taggerId].tagger = true;
+        room.players[taggerId].x = 300 + i * 50;
+        room.players[taggerId].y = 300;
       }
+
+      // Set positions for non-taggers
+      for (let i = taggerCount; i < playerIds.length; i++) {
+        const playerId = playerIds[i];
+        room.players[playerId].tagger = false;
+        room.players[playerId].x = 96;
+        room.players[playerId].y = 128;
+      }
+      
       // Notify all players in the room of their role
       for (const id of playerIds) {
-        const playerSocket = io.sockets.sockets.get(id); // Find the socket instance by id
+        const player = room.players[id];
+        const playerSocket = io.sockets.sockets.get(player.socketId);
         if(playerSocket){
-            const isTagger = room.players[id].tagger;
+            const isTagger = player.tagger;
             // Emit to the specific client's socket
-            io.to(id).emit('gameStarted', { tagger: isTagger });
+            io.to(player.socketId).emit('gameStarted', { tagger: isTagger });
         }
       }
     }
@@ -339,9 +348,18 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('chat', { senderId: clientId, payload });
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log(`Client ${clientId} disconnected from room ${roomId}`);
-    
+
+    const deletePlayer = await User.findOne({
+      where: { userId: String(clientId) }
+    });
+
+    if (deletePlayer) {
+      deletePlayer.inRoom = false;
+      await deletePlayer.save();
+    }
+
     // Handle waiting room disconnection
     const waitingRoom = gameState.waitingRooms[roomId];
     if (waitingRoom) {
@@ -361,11 +379,9 @@ io.on('connection', (socket) => {
         broadcastWaitingRoomUpdate(roomId);
       }
       
-      // Notify other players
       socket.to(`waiting_${roomId}`).emit('playerLeft', { playerId: clientId });
     }
     
-    // Handle game room disconnection
     const room = gameState.rooms[roomId];
     if (room && room.players[clientId]) {
       delete room.players[clientId];
@@ -378,6 +394,7 @@ io.on('connection', (socket) => {
         broadcastGameState();
       }
     }
+
   });
 });
 
@@ -499,52 +516,58 @@ function gameLoop() {
 
     // --- Tagging Logic ---
     const playerIds = Object.keys(room.players);
-    const taggerIds = playerIds.filter(id => room.players[id].tagger);
-    const nonTaggerIds = playerIds.filter(id => !room.players[id].tagger);
+    const taggerIds = playerIds.filter(id => room.players[id] && room.players[id].tagger);
+    const nonTaggerIds = playerIds.filter(id => room.players[id] && !room.players[id].tagger);
 
-    // Only one tagger allowed for this logic
-    if (taggerIds.length === 1) {
-      const taggerId = taggerIds[0];
+    // Handle tagging
+    for (const taggerId of taggerIds) {
       const tagger = room.players[taggerId];
+      if (!tagger) continue;
+
       const playerWidth = 32;
       const playerHeight = 32;
 
       for (const otherId of nonTaggerIds) {
         const otherPlayer = room.players[otherId];
-        // AABB collision detection
+        if (!otherPlayer) continue;
+
         if (
           tagger.x < otherPlayer.x + playerWidth &&
           tagger.x + playerWidth > otherPlayer.x &&
           tagger.y < otherPlayer.y + playerHeight &&
           tagger.y + playerHeight > otherPlayer.y
         ) {
-          // Tag occurred! Show game over to tagged user, then disconnect
-          const playerSocket = io.sockets.sockets.get(otherId);
+          
+          const playerSocket = io.sockets.sockets.get(otherPlayer.socketId);
           if (playerSocket) {
+            console.log(`Player ${otherId} was tagged by ${taggerId} in room ${roomId}`);
             playerSocket.emit('gameOver', { message: 'You were tagged! Game over.' });
-            setTimeout(() => playerSocket.disconnect(true), 1000); // Give time for message
           }
-          delete room.players[otherId];
-          break; // Only one tag per frame
-        }
-      }
 
-      // After possible tag, check if only taggers remain
-      const remainingIds = Object.keys(room.players);
-      const remainingTaggers = remainingIds.filter(id => room.players[id].tagger);
-      if (remainingTaggers.length === remainingIds.length && remainingIds.length > 0) {
-        // All remaining are taggers, they win
-        for (const id of remainingTaggers) {
-          const playerSocket = io.sockets.sockets.get(id);
-          if (playerSocket) {
-            playerSocket.emit('winGame', { message: 'You win! All others have been tagged.' });
-            setTimeout(() => playerSocket.disconnect(true), 1000);
-          }
+          delete room.players[otherId];
+          break; 
         }
-        // Clean up room
-        delete gameState.rooms[roomId];
       }
     }
+
+    const remainingPlayerIds = Object.keys(room.players);
+    const remainingNonTaggerIds = remainingPlayerIds.filter(id => room.players[id] && !room.players[id].tagger);
+
+    if (remainingNonTaggerIds.length === 0 && remainingPlayerIds.length > 0) {
+
+      for (const id of remainingPlayerIds) {
+        const player = room.players[id];
+        if (!player) continue;
+        const playerSocket = io.sockets.sockets.get(player.socketId);
+        if (playerSocket) {
+          playerSocket.emit('winGame', { message: 'You win! All others have been tagged.' });
+          console.log(`Player ${id} won the game in room ${roomId}`);
+        }
+      }
+      // Clean up room
+      delete gameState.rooms[roomId];
+    }
+
 
     broadcastGameState(roomId);
   });

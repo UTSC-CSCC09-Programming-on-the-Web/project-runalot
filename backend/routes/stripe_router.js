@@ -155,7 +155,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                     inRoom: false
                 });
 
-                if (io && userId && io.sockets.adapter.rooms[userId]) {
+                if (io && userId) {
                   io.to(userId).emit('checkout-completed', {
                     message: 'Your subscription has been activated successfully!',
                     userId: userId
