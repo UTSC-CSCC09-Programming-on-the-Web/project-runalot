@@ -1,8 +1,12 @@
 "use client";
 
-import CheckoutForm from "./stripe_checkout";
+import CheckoutForm from "./components/stripeCheckout";
 import Navbar from "./components/Navbar";
 export default function Home() {
+
+  const goToGame = () => {
+    window.location.href = "/play";
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-indigo-900">
@@ -19,11 +23,8 @@ export default function Home() {
               The ultimate multiplayer tag game with proximity chat and dynamic obstacles
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition duration-300 transform hover:scale-105 shadow-lg">
-                Join Game
-              </button>
-              <button className="border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-semibold py-3 px-8 rounded-lg transition duration-300">
-                Create Room
+              <button onClick={goToGame} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg min-w-[125px] transition duration-300 transform hover:scale-105 shadow-lg">
+                Play
               </button>
             </div>
           </div>

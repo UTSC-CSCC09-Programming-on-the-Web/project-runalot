@@ -1,56 +1,46 @@
 import passport from 'passport';
 import express from 'express';
 import { Router } from 'express';
-import { Strategy as GitHubStrategy } from 'passport-github2';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 dotenv.config();
 
 const router = Router();
 
-// Passport serialization
-passport.serializeUser((user, done) => {
-  done(null, user);
+router.use(bodyParser.urlencoded({ extended: false }));
+router.use(bodyParser.json());
+
+// Debug endpoint to test authentication
+router.get('/debug', (req, res) => {
+  console.log('=== AUTH DEBUG ===');
+  console.log('Session:', req.session);
+  console.log('User:', req.user);
+  console.log('isAuthenticated function exists:', typeof req.isAuthenticated);
+  console.log('isAuthenticated result:', req.isAuthenticated ? req.isAuthenticated() : 'function not available');
+  res.json({
+    session: req.session,
+    user: req.user,
+    isAuthenticated: req.isAuthenticated ? req.isAuthenticated() : false,
+    hasIsAuthenticatedFunction: typeof req.isAuthenticated === 'function'
+  });
 });
-
-passport.deserializeUser((user, done) => {
-  done(null, user);
-});
-
-// GitHub Strategy
-passport.use(new GitHubStrategy({
-  clientID: process.env.GITHUB_ID,
-  clientSecret: process.env.GITHUB_SECRET,
-  callbackURL: "http://localhost:4242/auth/github/callback"
-}, (accessToken, refreshToken, profile, done) => {
-  return done(null, profile);
-}));
-
-// Google Strategy
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_ID,
-  clientSecret: process.env.GOOGLE_SECRET,
-  callbackURL: "http://localhost:4242/auth/google/callback"
-}, (accessToken, refreshToken, profile, done) => {
-  return done(null, profile);
-}));
 
 // Authentication routes
 router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 
 router.get('/github/callback',
-  passport.authenticate('github', { failureRedirect: 'http://localhost:3000/login?error=github' }),
+  passport.authenticate('github', { failureRedirect: `${process.env.FRONTEND_URL}/login?error=github` }),
   (req, res) => {
-    res.redirect('http://localhost:3000/dashboard');
+    res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
   }
 );
 
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 router.get('/google/callback',
-  passport.authenticate('google', { failureRedirect: 'http://localhost:3000/login?error=google' }),
+  passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL}/login?error=google` }),
   (req, res) => {
-    res.redirect('http://localhost:3000/dashboard');
+    res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
   }
 );
 
