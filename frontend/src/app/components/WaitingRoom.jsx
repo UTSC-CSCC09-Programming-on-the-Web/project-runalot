@@ -86,11 +86,6 @@ export default function WaitingRoom() {
         setSocket(null);
       });
 
-      // Listen for room creation errors
-      socketConnection.on('roomCreateError', (data) => {
-        createRoom();
-      });
-
       // Now emit joinWaitingRoom AFTER socket is set up
       socketConnection.emit('joinWaitingRoom', {
         roomId,

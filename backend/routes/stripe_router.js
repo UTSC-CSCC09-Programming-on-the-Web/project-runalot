@@ -146,14 +146,23 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                 const session = event.data.object;
                 const userId = session.metadata?.userId;
 
-                const clientPaid = await User.create({
-                    userId: String(session.metadata?.userId),
-                    email: session.metadata?.userEmail,
-                    name: session.metadata?.userName,
-                    customerId: session.customer,
-                    subscriptionId: session.subscription,
-                    inRoom: false
+                const findedUser = await User.findOne({
+                    where: { userId: String(session.metadata?.userId) }
                 });
+
+                if(!findedUser) {
+                  const clientPaid = await User.create({
+                      userId: String(session.metadata?.userId),
+                      email: session.metadata?.userEmail,
+                      name: session.metadata?.userName,
+                      customerId: session.customer,
+                      subscription: true,
+                      inRoom: false
+                  });
+                } else{
+                  findedUser.subscription = true;
+                  await findedUser.save();
+                }
 
                 if (io && userId) {
                   io.to(userId).emit('checkout-completed', {

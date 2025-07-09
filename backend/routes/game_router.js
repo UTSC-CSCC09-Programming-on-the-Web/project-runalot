@@ -146,6 +146,9 @@ io.on('connection', (socket) => {
       });
       return;
     }
+
+    ClientJoined.inRoom = true;
+    await ClientJoined.save();
     
     // Create waiting room if it doesn't exist and user is creating
     if (isCreating && !gameState.waitingRooms[roomId]) {
@@ -155,7 +158,7 @@ io.on('connection', (socket) => {
         gameStarted: false
       };
     }
-    
+
     // Add player to waiting room
     const waitingRoom = gameState.waitingRooms[roomId];
     const existingPlayerIndex = waitingRoom.players.findIndex(p => p.id === clientId);

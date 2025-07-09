@@ -429,11 +429,15 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
             }
         };
 
+        const onGameOver = (data: any) => {
+            socketIo.disconnect();
+        };
 
         // Register listeners
         socketIo.on('connect', onConnect);
         socketIo.on('disconnect', onDisconnect);
         socketIo.on('gameStateUpdate', onGameStateUpdate);
+        socketIo.on('gameOver', onGameOver);
 
         // Cleanup function
         return () => {
@@ -444,6 +448,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
             socketIo.off('connect', onConnect);
             socketIo.off('disconnect', onDisconnect);
             socketIo.off('gameStateUpdate', onGameStateUpdate);
+            socketIo.off('gameOver', onGameOver); ;
         };
 
     }, [socketIo]);
