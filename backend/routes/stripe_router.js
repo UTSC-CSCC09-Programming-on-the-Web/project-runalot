@@ -21,6 +21,10 @@ const stripeRouter = function (io) {
     // Join the client to a room named after their user ID.
     socket.join(userId);
     console.log(`User ${userId} connected and joined their socket room.`);
+
+    socket.on('disconnect', () => {
+      console.log(`User ${userId} disconnected.`);
+    });
   });
 
   const router = Router();
@@ -39,6 +43,7 @@ router.get('/debug-auth', (req, res) => {
 
 router.post('/create-checkout-session', express.json(), requireAuth, async (req, res) => {
 
+  console.log('Creating checkout session with body:', req.body);
 
   try {
     const { userId, userEmail, userName } = req.body;
@@ -141,15 +146,25 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                 const session = event.data.object;
                 const userId = session.metadata?.userId;
 
-                const clientPaid = await User.create({
-                    userId: session.metadata?.userId,
-                    email: session.metadata?.userEmail,
-                    name: session.metadata?.userName,
-                    customerId: session.customer,
-                    subscriptionId: session.subscription,
+                const findedUser = await User.findOne({
+                    where: { userId: String(session.metadata?.userId) }
                 });
 
-                if (io && userId && io.sockets.adapter.rooms[userId]) {
+                if(!findedUser) {
+                  const clientPaid = await User.create({
+                      userId: String(session.metadata?.userId),
+                      email: session.metadata?.userEmail,
+                      name: session.metadata?.userName,
+                      customerId: session.customer,
+                      subscription: true,
+                      inRoom: false
+                  });
+                } else{
+                  findedUser.subscription = true;
+                  await findedUser.save();
+                }
+
+                if (io && userId) {
                   io.to(userId).emit('checkout-completed', {
                     message: 'Your subscription has been activated successfully!',
                     userId: userId

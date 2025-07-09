@@ -5,6 +5,8 @@ const useSocket = (uri, query) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
+    if (!uri) return;
+
     const newSocket = io(uri, {
       // transports: ['websocket'], // Force websocket connection
       withCredentials: true, // Ensure cookies are sent with requests
