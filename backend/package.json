@@ -5,11 +5,11 @@
   "license": "ISC",
   "author": "Shubham Garg",
   "type": "module",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node app.js",
+    "dev": "nodemon app.js"
   },
   "dependencies": {
     "@sequelize/postgres": "^7.0.0-alpha.46",
