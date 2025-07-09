@@ -24,7 +24,7 @@ services:
     environment:
       - DEFAULT_EMAIL=shubham.garg@mail.utoronto.ca
   frontend:
-    image: ghcr.io/uoft-utsc-cs-sandbox/frontend-taggit
+    image: ghcr.io/utsc-cscc09-programming-on-the-web/frontend-taggit
     container_name: frontend
     restart: always
     expose:
@@ -35,7 +35,7 @@ services:
     env_file:
       - ./frontend/.env.local
   backend:
-    image: ghcr.io/uoft-utsc-cs-sandbox/backend-taggit
+    image: ghcr.io/utsc-cscc09-programming-on-the-web/backend-taggit
     container_name: backend
     restart: always
     expose:

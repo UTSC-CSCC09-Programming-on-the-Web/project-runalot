@@ -18,4 +18,6 @@ jobs:
         key: ${{ secrets.KEY }}
         port: 22
         script: |
+          docker pull ghcr.io/utsc-cscc09-programming-on-the-web/frontend-taggit
+          docker pull ghcr.io/utsc-cscc09-programming-on-the-web/backend-taggit
           docker-compose pull && docker-compose up -d
