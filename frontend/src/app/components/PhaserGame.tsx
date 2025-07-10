@@ -356,7 +356,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
             const tilePixelHeight = 32;
             const gameWorldWidth = mapTilesWide * tilePixelWidth;
             const gameWorldHeight = mapTilesHigh * tilePixelHeight;
-            const viewportWidth = Math.min(gameWorldWidth, 720);
+            const viewportWidth = Math.min(gameWorldWidth, 800);
             const viewportHeight = Math.min(gameWorldHeight, 600);
 
             const config: Phaser.Types.Core.GameConfig = {
