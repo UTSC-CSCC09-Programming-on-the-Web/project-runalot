@@ -18,7 +18,7 @@ ENV NODE_ENV=production
 ENV PORT=80
 
 EXPOSE 80
-CMD ["node", "server.js"]
+CMD ["npm", "run", "start"]
 
 
 # FROM node:18-alpine AS build
