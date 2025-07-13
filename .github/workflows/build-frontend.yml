@@ -47,3 +47,16 @@ jobs:
           echo VERSION=$VERSION
           docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: appleboy/ssh-action@v1
+      with:
+        host: "134.122.46.244"
+        username: root
+        key: ${{ secrets.KEY }}
+        port: 22
+        script: |
+          docker-compose pull && docker-compose up -d
