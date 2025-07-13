@@ -44,6 +44,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = (provider) => {
+    console.log(`Logging in with ${processor.env.NEXT_PUBLIC_BACKEND_URL}/auth/${provider}`);
     window.location.href = `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/${provider}`;
   };
 
