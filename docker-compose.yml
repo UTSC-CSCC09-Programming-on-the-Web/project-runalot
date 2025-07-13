@@ -1,57 +1,18 @@
-# version: "3.7"
-
-# services:
-#   nginx-proxy:
-#     image: jwilder/nginx-proxy
-#     container_name: nginx-proxy
-#     ports:
-#       - "80:80"
-#       - "443:443"
-#     volumes:
-#       - /var/run/docker.sock:/tmp/docker.sock:ro
-#       - ./certs:/etc/nginx/certs
-#       - ./vhost:/etc/nginx/vhost.d
-#       - ./html:/usr/share/nginx/html
-#     labels:
-#       - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy=true"
-#     restart: always
-#   nginx-proxy-acme:
-#     image: nginxproxy/acme-companion
-#     container_name: nginx-proxy-acme
-#     volumes:
-#       - /var/run/docker.sock:/var/run/docker.sock:ro
-#       - ./certs:/etc/nginx/certs
-#       - ./vhost:/etc/nginx/vhost.d
-#       - ./html:/usr/share/nginx/html
-#       - ./acme:/etc/acme.sh
-#     environment:
-#       - DEFAULT_EMAIL=shubham.garg@mail.utoronto.ca
-#   frontend:
-#     image: ghcr.io/utsc-cscc09-programming-on-the-web/frontend-taggit:latest
-#     container_name: frontend
-#     restart: always
-#     expose:
-#       - 80
-#     environment:
-#       - VIRTUAL_HOST=taggit.tech
-#       - LETSENCRYPT_HOST=taggit.tech
-#     env_file:
-#       - ./frontend/.env.local
-#   backend:
-#     image: ghcr.io/utsc-cscc09-programming-on-the-web/backend-taggit:latest
-#     container_name: backend
-#     restart: always
-#     expose:
-#       - 4242
-#     environment:
-#       - VIRTUAL_HOST=api.taggit.tech
-#       - LETSENCRYPT_HOST=api.taggit.tech
-#     env_file:
-#       - ./backend/.env
-
 version: '3.8'
 
 services:
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: dbtaggit
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
   frontend:
     image: ghcr.io/your-org/your-frontend-image:latest
     container_name: frontend
@@ -77,3 +38,6 @@ services:
       - frontend
       - backend
     restart: always
+
+volumes:
+  postgres_data:
