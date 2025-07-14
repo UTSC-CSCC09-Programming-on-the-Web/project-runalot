@@ -5,12 +5,13 @@ on:
     # Only run this workflow if it is a commit to main.
     branches:
       - main
+      - ci-cd
     # Only run this workflow if the commit has modified files from backend
     paths:
       - backend/**
 
 env:
-  IMAGE_NAME: backend-taggit
+  IMAGE_NAME: backend-taggit:latest
 
 jobs:
   # Push image to GitHub Packages.
