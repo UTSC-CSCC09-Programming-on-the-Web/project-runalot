@@ -11,7 +11,7 @@ on:
       - frontend/**
 
 env:
-  IMAGE_NAME: frontend-taggit:latest
+  IMAGE_NAME: frontend-taggit
 
 jobs:
   # Push image to GitHub Packages.

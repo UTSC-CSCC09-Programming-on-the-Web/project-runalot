@@ -11,7 +11,7 @@ on:
       - backend/**
 
 env:
-  IMAGE_NAME: backend-taggit:latest
+  IMAGE_NAME: backend-taggit
 
 jobs:
   # Push image to GitHub Packages.
