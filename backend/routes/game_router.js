@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { where } from 'sequelize';
 import {User} from '../models/User.js';
 import { requireAuth } from './auth-router.js';
+import Peer from 'peerjs';
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -268,6 +269,15 @@ io.on('connection', (socket) => {
     }
   });
 
+socket.on('playerPeerReady', (data) => {
+    const { clientId, peerId, roomId} = data;
+    if (gameState.rooms[roomId] && gameState.rooms[roomId].players[clientId]) {
+      gameState.rooms[roomId].players[clientId].peerId = peerId;
+      // Notify other players of the new peer
+      socket.to(roomId).emit('newPlayerPeer', { clientId, peerId });
+    }
+  });
+
   socket.join(roomId); // Client joins the specific room
 
   if (!gameState.rooms[roomId]) {
@@ -515,6 +525,70 @@ function gameLoop() {
       player.x = Math.round(finalX);
       player.y = Math.round(finalY);
     });
+
+    // --- Proximity Voice Chat Logic ---
+    const players = room.players;
+    const playerIdsInRoom = Object.keys(players);
+
+    for (let i = 0; i < playerIdsInRoom.length; i++) {
+      for (let j = i + 1; j < playerIdsInRoom.length; j++) {
+        const player1Id = playerIdsInRoom[i];
+        const player2Id = playerIdsInRoom[j];
+
+        const player1 = players[player1Id];
+        const player2 = players[player2Id];
+
+        if (!player1 || !player2 || !player1.peerId || !player2.peerId) {
+          console.log(`Skipping voice connection check for ${player1Id} and ${player2Id} in room ${roomId} due to missing peerId`);
+          continue;
+        }
+
+        const distance = Math.sqrt(
+          Math.pow(player1.x - player2.x, 2) +
+          Math.pow(player1.y - player2.y, 2)
+        );
+
+        const areConnected = player1.connections && player1.connections.has(player2Id);
+
+        if (distance <= 150 && !areConnected) {
+          console.log(`Connecting voice for ${player1Id} and ${player2Id} in room ${roomId}`);
+          // Notify players to connect
+          const socket1 = io.sockets.sockets.get(player1.socketId);
+          const socket2 = io.sockets.sockets.get(player2.socketId);
+
+          if (socket1) {
+            socket1.emit('connectVoice', { peerId: player2.peerId, clientId: player2Id });
+            console.log(`Connecting voice for ${player1Id} to ${player2Id} in room ${roomId}`);
+          }
+          if (socket2) {
+            socket2.emit('connectVoice', { peerId: player1.peerId, clientId: player1Id });
+            console.log(`Connecting voice for ${player2Id} to ${player1Id} in room ${roomId}`);
+          }
+
+          // Track the connection
+          if (!player1.connections) player1.connections = new Set();
+          player1.connections.add(player2Id);
+          if (!player2.connections) player2.connections = new Set();
+          player2.connections.add(player1Id);
+
+        } else if (distance > 150 && areConnected) {
+          // Notify players to disconnect
+          const socket1 = io.sockets.sockets.get(player1.socketId);
+          const socket2 = io.sockets.sockets.get(player2.socketId);
+
+          if (socket1) {
+            socket1.emit('disconnectVoice', { peerId: player2.peerId, clientId: player2Id });
+          }
+          if (socket2) {
+            socket2.emit('disconnectVoice', { peerId: player1.peerId, clientId: player1Id });
+          }
+
+          // Untrack the connection
+          player1.connections.delete(player2Id);
+          player2.connections.delete(player1Id);
+        }
+      }
+    }
 
 
     // --- Tagging Logic ---

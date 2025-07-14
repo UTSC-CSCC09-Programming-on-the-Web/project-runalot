@@ -185,12 +185,12 @@ export default function WaitingRoom() {
   if (gameState === 'playing') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-12 px-4">
-        <div className="max-w-4xl w-full mx-auto">
+        <div className="max-w-4xl w-auto mx-auto">
           <div className="text-center mb-6">
             <h1 className="text-4xl font-bold text-gray-800 mb-2" style={{fontFamily: "'Comic Sans MS', cursive"}}>Git, Set, GO!</h1>
           </div>
           
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
             {socket ? (
               <PhaserGameNoSSR socketIo={socket} clientId={clientId} roomId={roomId} />
             ) : (

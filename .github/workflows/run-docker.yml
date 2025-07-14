@@ -1,0 +1,22 @@
+name: Pull and deploy docker images
+on:
+  push:
+    # Only run this workflow if it is a commit to main.
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: appleboy/ssh-action@v1
+      with:
+        host: "134.122.46.244"
+        username: root
+        key: ${{ secrets.KEY }}
+        port: 22
+        script: |
+          docker-compose down && docker-compose rm -f
+          docker-compose pull && docker-compose up -d
