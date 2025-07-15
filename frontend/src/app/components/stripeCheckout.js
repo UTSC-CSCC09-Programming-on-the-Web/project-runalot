@@ -49,7 +49,7 @@ const CheckoutForm = () => {
       socket.disconnect();
     };
   }, [user, router]);
-
+ 
   const fetchClientSecret = useCallback(() => {
     if (!user) {
       setError('User not authenticated');

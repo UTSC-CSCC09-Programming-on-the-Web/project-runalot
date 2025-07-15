@@ -28,16 +28,22 @@ services:
     restart: always
 
   nginx:
-    image: nginx:latest
+    image: staticfloat/nginx-certbot
     container_name: nginx
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/conf.d:/etc/nginx/user.conf.d:ro
+      - ./nginx/certbot:/etc/letsencrypt
+    environment:
+      - CERTBOT_EMAIL=shubham.garg@mail.utoronto.ca
+      - CERTBOT_DOMAINS=taggit.tech,api.taggit.tech
+      - CERTBOT_EXTRA_ARGS=--agree-tos
     depends_on:
       - frontend
       - backend
+      - peerjs
     restart: always
 
   postgres:
@@ -47,3 +53,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
