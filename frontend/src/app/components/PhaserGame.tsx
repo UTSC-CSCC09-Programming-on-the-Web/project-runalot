@@ -460,8 +460,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
     useEffect(() => {
         // Initialize PeerJS and get microphone
         const peerHost = process.env.NEXT_PUBLIC_PEERHOST || 'localhost';
-        console.log('[PhaserGame] Initializing PeerJS with:', { host: peerHost, port: 9000, path: '/peerjs', secure: false });
-        const peer = new Peer({ host: peerHost, port: 9000, path: '/peerjs', secure: false });
+        console.log('[PhaserGame] Initializing PeerJS with:', { host: peerHost, port: 9000, path: '/', secure: false });
+        const peer = new Peer({ host: peerHost, port: 9000, path: '/', secure: false });
         peerRef.current = peer;
 
         // Add PeerJS connection event logging
