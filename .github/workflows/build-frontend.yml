@@ -32,7 +32,8 @@ jobs:
             --build-arg GOOGLE_ID="${{ secrets.GOOGLE_ID }}" \
             --build-arg GOOGLE_SECRET="${{ secrets.GOOGLE_SECRET }}" \
             --build-arg NEXT_PUBLIC_BACKEND_URL="${{ secrets.NEXT_PUBLIC_BACKEND_URL }}" \
-            --build-arg NEXT_PUBLIC_PEERHOST="${{ secrets.NEXT_PUBLIC_PEERHOST }}"
+            --build-arg NEXT_PUBLIC_PEERHOST="${{ secrets.NEXT_PUBLIC_PEERHOST }}" \
+            --build-arg NEXT_PUBLIC_PEERSECURE="${{ secrets.NEXT_PUBLIC_PEERSECURE }}"
 
       - name: Log into GitHub Container Registry
         # TODO: Create a Personal Access Tokens (PAT) with `read:packages` and `write:packages` scopes and save it as an Actions secret `CR_PAT`
