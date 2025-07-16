@@ -535,10 +535,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
 
         socketIo.on('connectVoice', connectHandler);
         socketIo.on('disconnectVoice', disconnectHandler);
+        socketIo.on('disconnect', disconnectHandler);
 
         return () => {
             socketIo.off('connectVoice', connectHandler);
             socketIo.off('disconnectVoice', disconnectHandler);
+            socketIo.off('disconnect', disconnectHandler);
         };
     }, [socketIo]);
 
