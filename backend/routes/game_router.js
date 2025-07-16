@@ -60,6 +60,7 @@ const MAP_HEIGHT_TILES = OBSTACLE_MATRIX.length;
 let gameState = {
   rooms: {},
   waitingRooms: {}, // New: waiting rooms separate from active game rooms
+  timers: {} // Store timers for each room
 };
 
 
@@ -120,6 +121,22 @@ io.on('connection', (socket) => {
       socket.emit('roomJoinError', { 
         error: 'Room does not exist',
         message: `Room "${roomId}" was not found. Please check the room ID or create a new room.`
+      });
+      return;
+    }
+
+    if(!isCreating && gameState.waitingRooms[roomId] && gameState.waitingRooms[roomId].gameStarted){
+      socket.emit('roomJoinError', {
+        error: 'Game has already started',
+        message: `You cannot join room "${roomId}" because the game has already started.`
+      });
+      return;
+    }
+
+    if(!isCreating && gameState.waitingRooms[roomId] && gameState.waitingRooms[roomId].players.length >= 6){
+      socket.emit('roomJoinError', {
+        error: 'Room is full',
+        message: `Room "${roomId}" is already full. Please try joining a different room.`
       });
       return;
     }
@@ -266,6 +283,32 @@ io.on('connection', (socket) => {
       
       // Start broadcasting game state
       broadcastGameState();
+
+      // --- TIMER LOGIC ---
+      if (gameState.timers[roomId]) {
+        clearTimeout(gameState.timers[roomId]);
+      }
+      gameState.timers[roomId] = setTimeout(() => {
+        const room = gameState.rooms[roomId];
+        if (!room) return;
+        const playerIds = Object.keys(room.players);
+        for (const id of playerIds) {
+          const player = room.players[id];
+          if (!player) continue;
+          const playerSocket = io.sockets.sockets.get(player.socketId);
+          if (playerSocket) {
+            if (player.tagger) {
+              playerSocket.emit('gameOver', { message: 'Time is up! You lose.' });
+            } else {
+              playerSocket.emit('winGame', { message: 'Time is up! You win.' });
+            }
+          }
+        }
+        // Clean up room and timer
+        delete gameState.rooms[roomId];
+        clearTimeout(gameState.timers[roomId]);
+        delete gameState.timers[roomId];
+      }, 2 * 60 * 1000);
     }
   });
 
@@ -311,7 +354,6 @@ socket.on('playerPeerReady', (data) => {
 
     const playerIds = Object.keys(room.players);
     if (playerIds.length > 0) {
-      // Assign up to two taggers
       const taggerCount = Math.min(2, Math.floor(playerIds.length/2));
       for (let i = 0; i < taggerCount; i++) {
         const taggerId = playerIds[i];
@@ -631,7 +673,6 @@ function gameLoop() {
     const remainingNonTaggerIds = remainingPlayerIds.filter(id => room.players[id] && !room.players[id].tagger);
 
     if (remainingNonTaggerIds.length === 0 && remainingPlayerIds.length > 0) {
-
       for (const id of remainingPlayerIds) {
         const player = room.players[id];
         if (!player) continue;
@@ -641,8 +682,12 @@ function gameLoop() {
           console.log(`Player ${id} won the game in room ${roomId}`);
         }
       }
-      // Clean up room
+      // Clean up room and timer
       delete gameState.rooms[roomId];
+      if (gameState.timers[roomId]) {
+        clearTimeout(gameState.timers[roomId]);
+        delete gameState.timers[roomId];
+      }
     }
 
 
