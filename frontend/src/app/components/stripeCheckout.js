@@ -35,7 +35,7 @@ const CheckoutForm = () => {
     });
 
     socket.on('checkout-completed', (data) => {
-      router.push('/play');
+      // router.push('/play');
       socket.disconnect();
     });
 

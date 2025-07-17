@@ -46,8 +46,8 @@ export default function Home() {
         <div className="grid md:grid-cols-3 gap-8">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-md hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700">
             <div className="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4 text-3xl">👥</div>
-            <h3 className="text-xl font-extrabold text-indigo-700 dark:text-indigo-300 mb-2" style={{fontFamily: 'Luckiest Guy, Comic Sans MS, cursive'}}>Team Play</h3>
-            <p className="text-gray-700 dark:text-gray-200 font-semibold">1-2 Taggers vs 2-4 Runners. Team up, strategize, and outsmart your opponents!</p>
+            <h3 className="text-xl font-extrabold text-indigo-700 dark:text-indigo-300 mb-2" style={{fontFamily: 'Luckiest Guy, Comic Sans MS, cursive'}}>Individual Play</h3>
+            <p className="text-gray-700 dark:text-gray-200 font-semibold">You are on your own, sabotage fellow runners to give yourself an edge!</p>
           </div>
           <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-md hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700">
             <div className="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4 text-3xl">🎙️</div>
@@ -57,7 +57,7 @@ export default function Home() {
           <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-md hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700">
             <div className="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4 text-3xl">🏗️</div>
             <h3 className="text-xl font-extrabold text-indigo-700 dark:text-indigo-300 mb-2" style={{fontFamily: 'Luckiest Guy, Comic Sans MS, cursive'}}>Dynamic Obstacles</h3>
-            <p className="text-gray-700 dark:text-gray-200 font-semibold">Dodge, jump, and weave through ever-changing maps and obstacles!</p>
+            <p className="text-gray-700 dark:text-gray-200 font-semibold">Use the obstacles and weave through to escape!</p>
           </div>
         </div>
       </section>
@@ -85,7 +85,7 @@ export default function Home() {
                 <div className="flex items-start space-x-4">
                   <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-semibold">2</div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Choose Your Role</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Get your role</h3>
                     <p className="text-gray-600 dark:text-gray-300">Become a cunning Tagger or an agile Runner in this thrilling chase game.</p>
                   </div>
                 </div>
@@ -94,7 +94,7 @@ export default function Home() {
                   <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-semibold">3</div>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Play & Communicate</h3>
-                    <p className="text-gray-600 dark:text-gray-300">Use proximity chat to strategize and experience dynamic gameplay with tagged players joining their taggers.</p>
+                    <p className="text-gray-600 dark:text-gray-300">Use proximity chat to trash talk and ragebait other players.</p>
                   </div>
                 </div>
               </div>
