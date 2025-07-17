@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as Phaser from 'phaser';
 import {Socket} from 'socket.io-client';
 import Peer from 'peerjs';
@@ -347,6 +347,9 @@ class MainScene extends Phaser.Scene {
 const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) => {
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameInstanceRef = useRef<Phaser.Game | null>(null);
+    const [gameOver, setGameOver] = useState(false);
+    const [gameOverMessage, setGameOverMessage] = useState('');
+    const [isWinner, setIsWinner] = useState(false);
     // PeerJS voice chat refs
     const peerRef = useRef<Peer | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
@@ -434,7 +437,18 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
         };
 
         const onGameOver = (data: any) => {
-            socketIo.disconnect();
+            console.log('[PhaserGame] Game over received:', data);
+            setGameOver(true);
+            setGameOverMessage(data.message || 'You were tagged! Game over.');
+            setIsWinner(false);
+            // Don't disconnect immediately, let the player see the game over screen
+        };
+
+        const onWinGame = (data: any) => {
+            console.log('[PhaserGame] Win game received:', data);
+            setGameOver(true);
+            setGameOverMessage(data.message || 'You win! All others have been tagged.');
+            setIsWinner(true);
         };
 
         // Register listeners
@@ -442,6 +456,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
         socketIo.on('disconnect', onDisconnect);
         socketIo.on('gameStateUpdate', onGameStateUpdate);
         socketIo.on('gameOver', onGameOver);
+        socketIo.on('winGame', onWinGame);
 
         // Cleanup function
         return () => {
@@ -452,7 +467,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
             socketIo.off('connect', onConnect);
             socketIo.off('disconnect', onDisconnect);
             socketIo.off('gameStateUpdate', onGameStateUpdate);
-            socketIo.off('gameOver', onGameOver); ;
+            socketIo.off('gameOver', onGameOver);
+            socketIo.off('winGame', onWinGame);
         };
 
     }, [socketIo]);
@@ -555,8 +571,69 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
     const viewportWidth = Math.min(gameWorldWidth, 720);
     const viewportHeight = Math.min(gameWorldHeight, 600);
 
+    const handlePlayAgain = () => {
+        setGameOver(false);
+        setGameOverMessage('');
+        setIsWinner(false);
+        // Reconnect to a new game or return to waiting room
+        window.location.href = '/play'; // Redirect to dashboard to start a new game
+    };
 
-    return <div ref={gameContainerRef} id="phaser-game-container" style={{ width: `${viewportWidth}px`, height: `${viewportHeight}px`, overflow: 'hidden' }} />;
+    const handleReturnToDashboard = () => {
+        socketIo.disconnect();
+        window.location.href = '/dashboard';
+    };
+
+
+    return (
+        <div 
+            className="relative overflow-hidden"
+            style={{ width: `${viewportWidth}px`, height: `${viewportHeight}px` }}
+        >
+            <div 
+                ref={gameContainerRef} 
+                id="phaser-game-container" 
+                style={{ width: `${viewportWidth}px`, height: `${viewportHeight}px` }} 
+            />
+            
+            {gameOver && (
+                <div className="absolute inset-0 bg-black bg-opacity-80 flex flex-col justify-center items-center text-white text-2xl font-sans text-center z-[1000]">
+                    <div className={`
+                        ${isWinner 
+                            ? 'bg-gradient-to-br from-green-500 to-green-600 border-green-800' 
+                            : 'bg-gradient-to-br from-red-500 to-red-600 border-red-800'
+                        }
+                        p-8 rounded-2xl border-4 shadow-2xl max-w-md
+                        animate-[fadeIn_0.5s_ease-in-out]
+                    `}>
+                        <h2 className="text-4xl font-bold mb-5 drop-shadow-lg">
+                            {isWinner ? '🎉 Victory! 🎉' : '💥 Game Over 💥'}
+                        </h2>
+                        
+                        <p className="text-lg leading-relaxed mb-8">
+                            {gameOverMessage}
+                        </p>
+                        
+                        <div className="flex gap-4 justify-center">
+                            <button
+                                onClick={handlePlayAgain}
+                                className="px-6 py-3 text-base font-bold bg-blue-500 text-white border-none rounded-lg cursor-pointer transition-all duration-300 shadow-lg hover:bg-blue-600 hover:-translate-y-0.5 hover:shadow-xl"
+                            >
+                                Play Again
+                            </button>
+                            
+                            <button
+                                onClick={handleReturnToDashboard}
+                                className="px-6 py-3 text-base font-bold bg-gray-600 text-white border-none rounded-lg cursor-pointer transition-all duration-300 shadow-lg hover:bg-gray-700 hover:-translate-y-0.5 hover:shadow-xl"
+                            >
+                                Dashboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 
 export default PhaserGame;
