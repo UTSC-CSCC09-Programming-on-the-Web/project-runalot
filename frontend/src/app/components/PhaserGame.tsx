@@ -548,15 +548,24 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
                 delete activeCallsRef.current[peerId];
             }
         };
+        
+        // Handler to disconnect all PeerJS calls and destroy PeerJS instance on socket disconnect
+        const fullDisconnectHandler = () => {
+            Object.values(activeCallsRef.current).forEach(call => call.close());
+            activeCallsRef.current = {};
+            if (peerRef.current) {
+                peerRef.current.destroy();
+            }
+        };
 
         socketIo.on('connectVoice', connectHandler);
         socketIo.on('disconnectVoice', disconnectHandler);
-        socketIo.on('disconnect', disconnectHandler);
+        socketIo.on('disconnect', fullDisconnectHandler);
 
         return () => {
             socketIo.off('connectVoice', connectHandler);
             socketIo.off('disconnectVoice', disconnectHandler);
-            socketIo.off('disconnect', disconnectHandler);
+            socketIo.off('disconnect', fullDisconnectHandler);
         };
     }, [socketIo]);
 
