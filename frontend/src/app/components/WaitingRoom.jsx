@@ -194,7 +194,7 @@ export default function WaitingRoom() {
         </button>
         <div className="max-w-4xl w-auto mx-auto">
           <div className="text-center mb-6">
-            <h1 className="text-4xl font-bold text-gray-800 mb-2" style={{fontFamily: "'Comic Sans MS', cursive"}}>Git, Set, GO!</h1>
+            <h1 className="text-4xl font-bold text-gray-800 mt-2 mb-2" style={{fontFamily: "'Comic Sans MS', cursive"}}>Git, Set, GO!</h1>
           </div>
           <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
             {socket ? (
