@@ -14,8 +14,9 @@ export default function Navbar() {
           {/* Logo */}
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Lancelot
+              <span className="text-2xl font-bold">
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">TAG</span>
+                <span className="text-indigo-700 dark:text-indigo-400">GIT</span>
               </span>
             </div>
           </div>
