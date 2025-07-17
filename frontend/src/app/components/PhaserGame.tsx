@@ -561,6 +561,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
         socketIo.on('connectVoice', connectHandler);
         socketIo.on('disconnectVoice', disconnectHandler);
         socketIo.on('disconnect', fullDisconnectHandler);
+        socketIo.on('gameOver', fullDisconnectHandler);
+        socketIo.on('winGame', fullDisconnectHandler);
 
         return () => {
             socketIo.off('connectVoice', connectHandler);
