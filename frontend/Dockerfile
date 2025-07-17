@@ -1,6 +1,26 @@
 # Build stage
 FROM node:18-alpine AS builder
 WORKDIR /app
+
+ARG NEXT_PUBLIC_STRIPE_PUBLIC_KEY
+ENV NEXT_PUBLIC_STRIPE_PUBLIC_KEY=$NEXT_PUBLIC_STRIPE_PUBLIC_KEY
+
+ARG GOOGLE_ID
+ENV GOOGLE_ID=$GOOGLE_ID
+
+ARG GOOGLE_SECRET
+ENV GOOGLE_SECRET=$GOOGLE_SECRET
+
+ARG NEXT_PUBLIC_BACKEND_URL
+ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL
+
+ARG NEXT_PUBLIC_PEERHOST
+ENV NEXT_PUBLIC_PEERHOST=$NEXT_PUBLIC_PEERHOST
+
+ARG NEXT_PUBLIC_PEERSECURE
+ENV NEXT_PUBLIC_PEERSECURE=$NEXT_PUBLIC_PEERSECURE
+
+
 COPY . .
 RUN npm install
 RUN npm run build
@@ -8,6 +28,7 @@ RUN npm run build
 # Production image
 FROM node:18-alpine
 WORKDIR /app
+
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
@@ -15,26 +36,3 @@ COPY --from=builder /app/package.json ./
 
 EXPOSE 3000
 CMD ["node", "node_modules/next/dist/bin/next", "start"]
-
-
-# FROM node:18-alpine AS build
-# WORKDIR /app
-# ENV PATH /app/node_modules/.bin:$PATH
-# COPY package.json ./
-# COPY package-lock.json ./
-# RUN npm ci --silent
-# COPY . ./
-# # Modify your next.config.js to include "output: 'standalone'"
-# RUN npm run build
-
-# FROM node:18-alpine
-# WORKDIR /app
-# COPY --from=build /app/public ./public
-# COPY --from=build /app/.next/standalone ./
-# COPY --from=build /app/.next/static ./.next/static
-
-# ENV NODE_ENV=production
-# ENV PORT=80
-
-# EXPOSE 80
-# CMD ["node", "server.js"]

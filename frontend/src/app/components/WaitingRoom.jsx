@@ -184,13 +184,19 @@ export default function WaitingRoom() {
 
   if (gameState === 'playing') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-12 px-4">
-        <div className="max-w-4xl w-full mx-auto">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 pt-0 pb-6 px-4 relative">
+        {/* Leave Game Button at Top Left */}
+        <button
+          onClick={leaveRoom}
+          className="absolute font-medium cursor-pointer top-4 left-4 bg-white border-1 border-red-600 text-red-600 px-4 py-2 rounded-lg shadow transition duration-200 z-50 hover:bg-red-800 hover:text-white"
+        >
+          Leave Game
+        </button>
+        <div className="max-w-4xl w-auto mx-auto">
           <div className="text-center mb-6">
             <h1 className="text-4xl font-bold text-gray-800 mb-2" style={{fontFamily: "'Comic Sans MS', cursive"}}>Git, Set, GO!</h1>
           </div>
-          
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
             {socket ? (
               <PhaserGameNoSSR socketIo={socket} clientId={clientId} roomId={roomId} />
             ) : (
@@ -200,6 +206,8 @@ export default function WaitingRoom() {
               </div>
             )}
           </div>
+          {/* Countdown Timer Below Game */}
+          <CountdownTimer key={gameState} />
         </div>
       </div>
     );
@@ -323,6 +331,35 @@ export default function WaitingRoom() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Add this above the component definition
+function CountdownTimer() {
+  const [secondsLeft, setSecondsLeft] = React.useState(120);
+  React.useEffect(() => {
+    setSecondsLeft(120);
+    if (secondsLeft <= 0) return;
+    const interval = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line
+  }, [/* only on mount and remount */]);
+  const min = Math.floor(secondsLeft / 60);
+  const sec = secondsLeft % 60;
+  return (
+    <div className="w-full flex justify-center mt-2">
+      <div className="bg-gray-900 text-white px-6 py-2 rounded-lg text-lg font-mono shadow" style={{minWidth: 160, textAlign: 'center'}}>
+        Time Left: {min}:{sec.toString().padStart(2, '0')}
       </div>
     </div>
   );

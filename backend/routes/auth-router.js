@@ -68,5 +68,5 @@ const requireAuth = (req, res, next) => {
   }
   res.status(401).json({ error: 'Authentication required' });
 };
-
+ 
 export { router as authRouter, requireAuth };

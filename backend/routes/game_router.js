@@ -8,6 +8,8 @@ import { where } from 'sequelize';
 import {User} from '../models/User.js';
 import { requireAuth } from './auth-router.js';
 import { isAuthenticated } from '../middleware/socketAuthentication.js';
+import Peer from 'peerjs';
+
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -73,6 +75,7 @@ const MAP_HEIGHT_TILES = OBSTACLE_MATRIX.length;
 let gameState = {
   rooms: {},
   waitingRooms: {}, // New: waiting rooms separate from active game rooms
+  timers: {} // Store timers for each room
 };
 
 
@@ -133,6 +136,22 @@ io.on('connection', (socket) => {
       socket.emit('roomJoinError', { 
         error: 'Room does not exist',
         message: `Room "${roomId}" was not found. Please check the room ID or create a new room.`
+      });
+      return;
+    }
+
+    if(!isCreating && gameState.waitingRooms[roomId] && gameState.waitingRooms[roomId].gameStarted){
+      socket.emit('roomJoinError', {
+        error: 'Game has already started',
+        message: `You cannot join room "${roomId}" because the game has already started.`
+      });
+      return;
+    }
+
+    if(!isCreating && gameState.waitingRooms[roomId] && gameState.waitingRooms[roomId].players.length >= 6){
+      socket.emit('roomJoinError', {
+        error: 'Room is full',
+        message: `Room "${roomId}" is already full. Please try joining a different room.`
       });
       return;
     }
@@ -279,6 +298,41 @@ io.on('connection', (socket) => {
       
       // Start broadcasting game state
       broadcastGameState();
+
+      // --- TIMER LOGIC ---
+      if (gameState.timers[roomId]) {
+        clearTimeout(gameState.timers[roomId]);
+      }
+      gameState.timers[roomId] = setTimeout(() => {
+        const room = gameState.rooms[roomId];
+        if (!room) return;
+        const playerIds = Object.keys(room.players);
+        for (const id of playerIds) {
+          const player = room.players[id];
+          if (!player) continue;
+          const playerSocket = io.sockets.sockets.get(player.socketId);
+          if (playerSocket) {
+            if (player.tagger) {
+              playerSocket.emit('gameOver', { message: 'Time is up! You lose.' });
+            } else {
+              playerSocket.emit('winGame', { message: 'Time is up! You win.' });
+            }
+          }
+        }
+        // Clean up room and timer
+        delete gameState.rooms[roomId];
+        clearTimeout(gameState.timers[roomId]);
+        delete gameState.timers[roomId];
+      }, 2 * 60 * 1000);
+    }
+  });
+
+socket.on('playerPeerReady', (data) => {
+    const { clientId, peerId, roomId} = data;
+    if (gameState.rooms[roomId] && gameState.rooms[roomId].players[clientId]) {
+      gameState.rooms[roomId].players[clientId].peerId = peerId;
+      // Notify other players of the new peer
+      socket.to(roomId).emit('newPlayerPeer', { clientId, peerId });
     }
   });
 
@@ -315,7 +369,6 @@ io.on('connection', (socket) => {
 
     const playerIds = Object.keys(room.players);
     if (playerIds.length > 0) {
-      // Assign up to two taggers
       const taggerCount = Math.min(2, Math.floor(playerIds.length/2));
       for (let i = 0; i < taggerCount; i++) {
         const taggerId = playerIds[i];
@@ -530,6 +583,70 @@ function gameLoop() {
       player.y = Math.round(finalY);
     });
 
+    // --- Proximity Voice Chat Logic ---
+    const players = room.players;
+    const playerIdsInRoom = Object.keys(players);
+
+    for (let i = 0; i < playerIdsInRoom.length; i++) {
+      for (let j = i + 1; j < playerIdsInRoom.length; j++) {
+        const player1Id = playerIdsInRoom[i];
+        const player2Id = playerIdsInRoom[j];
+
+        const player1 = players[player1Id];
+        const player2 = players[player2Id];
+
+        if (!player1 || !player2 || !player1.peerId || !player2.peerId) {
+          console.log(`Skipping voice connection check for ${player1Id} and ${player2Id} in room ${roomId} due to missing peerId`);
+          continue;
+        }
+
+        const distance = Math.sqrt(
+          Math.pow(player1.x - player2.x, 2) +
+          Math.pow(player1.y - player2.y, 2)
+        );
+
+        const areConnected = player1.connections && player1.connections.has(player2Id);
+
+        if (distance <= 150 && !areConnected) {
+          console.log(`Connecting voice for ${player1Id} and ${player2Id} in room ${roomId}`);
+          // Notify players to connect
+          const socket1 = io.sockets.sockets.get(player1.socketId);
+          const socket2 = io.sockets.sockets.get(player2.socketId);
+
+          if (socket1) {
+            socket1.emit('connectVoice', { peerId: player2.peerId, clientId: player2Id });
+            console.log(`Connecting voice for ${player1Id} to ${player2Id} in room ${roomId}`);
+          }
+          if (socket2) {
+            socket2.emit('connectVoice', { peerId: player1.peerId, clientId: player1Id });
+            console.log(`Connecting voice for ${player2Id} to ${player1Id} in room ${roomId}`);
+          }
+
+          // Track the connection
+          if (!player1.connections) player1.connections = new Set();
+          player1.connections.add(player2Id);
+          if (!player2.connections) player2.connections = new Set();
+          player2.connections.add(player1Id);
+
+        } else if (distance > 150 && areConnected) {
+          // Notify players to disconnect
+          const socket1 = io.sockets.sockets.get(player1.socketId);
+          const socket2 = io.sockets.sockets.get(player2.socketId);
+
+          if (socket1) {
+            socket1.emit('disconnectVoice', { peerId: player2.peerId, clientId: player2Id });
+          }
+          if (socket2) {
+            socket2.emit('disconnectVoice', { peerId: player1.peerId, clientId: player1Id });
+          }
+
+          // Untrack the connection
+          player1.connections.delete(player2Id);
+          player2.connections.delete(player1Id);
+        }
+      }
+    }
+
 
     // --- Tagging Logic ---
     const playerIds = Object.keys(room.players);
@@ -571,7 +688,6 @@ function gameLoop() {
     const remainingNonTaggerIds = remainingPlayerIds.filter(id => room.players[id] && !room.players[id].tagger);
 
     if (remainingNonTaggerIds.length === 0 && remainingPlayerIds.length > 0) {
-
       for (const id of remainingPlayerIds) {
         const player = room.players[id];
         if (!player) continue;
@@ -581,8 +697,12 @@ function gameLoop() {
           console.log(`Player ${id} won the game in room ${roomId}`);
         }
       }
-      // Clean up room
+      // Clean up room and timer
       delete gameState.rooms[roomId];
+      if (gameState.timers[roomId]) {
+        clearTimeout(gameState.timers[roomId]);
+        delete gameState.timers[roomId];
+      }
     }
 
 
