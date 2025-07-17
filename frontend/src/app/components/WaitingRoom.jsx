@@ -184,12 +184,18 @@ export default function WaitingRoom() {
 
   if (gameState === 'playing') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 pt-0 pb-6 px-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 pt-0 pb-6 px-4 relative">
+        {/* Leave Game Button at Top Left */}
+        <button
+          onClick={leaveRoom}
+          className="absolute font-medium cursor-pointer top-4 left-4 bg-white border-1 border-red-600 text-red-600 px-4 py-2 rounded-lg shadow transition duration-200 z-50 hover:bg-red-800 hover:text-white"
+        >
+          Leave Game
+        </button>
         <div className="max-w-4xl w-auto mx-auto">
           <div className="text-center mb-6">
             <h1 className="text-4xl font-bold text-gray-800 mb-2" style={{fontFamily: "'Comic Sans MS', cursive"}}>Git, Set, GO!</h1>
           </div>
-          
           <div className="bg-white rounded-xl shadow-lg p-4 mb-4">
             {socket ? (
               <PhaserGameNoSSR socketIo={socket} clientId={clientId} roomId={roomId} />
