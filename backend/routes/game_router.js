@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { where } from 'sequelize';
 import {User} from '../models/User.js';
 import { requireAuth } from './auth-router.js';
+import { isAuthenticated } from '../middleware/socketAuthentication.js';
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -17,6 +18,19 @@ const tagRouter = Router();
 tagRouter.use(bodyParser.urlencoded({ extended: false }));
 tagRouter.use(bodyParser.json());
 
+io.use(async (socket, next) => {
+  try {
+    const isAuth = await isAuthenticated(socket.request);
+    if (isAuth) {
+      next();
+    } else {
+      next(new Error("unauthenticated"));
+    }
+  } catch (error) {
+    console.error('Socket authentication error:', error);
+    next(new Error("authentication_error"));
+  }
+});
 
 // --- Game Configuration ---
 const PLAYER_SPEED = 180;
