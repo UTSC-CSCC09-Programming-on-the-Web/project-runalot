@@ -2,75 +2,62 @@
 
 import CheckoutForm from "./components/stripeCheckout";
 import Navbar from "./components/Navbar";
+import { useAuth } from "./contexts/AuthContext";
+import { useEffect, useState } from "react";
+
+
 export default function Home() {
+
+  const { user, loading } = useAuth();
 
   const goToGame = () => {
     window.location.href = "/play";
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-indigo-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 relative overflow-x-hidden">
       <Navbar />
       {/* Header */}
-      <header className="relative overflow-hidden bg-white dark:bg-gray-800 shadow-lg pt-16">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 opacity-10"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+      <header className="relative overflow-hidden bg-transparent shadow-none pt-20 z-10">
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-0 pt-12">
           <div className="text-center">
-            <span className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent block">
-              Project Lancelot
+            <span className="text-5xl md:text-7xl font-extrabold mb-6 block tracking-tight" style={{fontFamily: 'Luckiest Guy, Comic Sans MS, cursive'}}>
+              <span className="text-gray-700 dark:text-gray-200">TAG</span>
+              <span className="text-indigo-600 dark:text-indigo-300">GIT</span>
             </span>
-            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
-              The ultimate multiplayer tag game with proximity chat and dynamic obstacles
+            <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 font-semibold mb-8 max-w-2xl mx-auto" style={{fontFamily: 'Comic Sans MS, cursive'}}>
+              Ultimate online tag game. Run, chase, and outsmart your friends in a fun arena!
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button onClick={goToGame} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg min-w-[125px] transition duration-300 transform hover:scale-105 shadow-lg">
-                Play
+            {user && <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button onClick={goToGame} className="bg-gray-800 hover:bg-indigo-700 text-white font-extrabold py-3 px-10 rounded-xl text-xl shadow-md border-2 border-gray-300 dark:border-gray-700 hover:scale-105 transition-all duration-200 ease-out" style={{fontFamily: 'Luckiest Guy, Comic Sans MS, cursive', letterSpacing: 2}}>
+                PLAY NOW
               </button>
-            </div>
+            </div>}
           </div>
         </div>
       </header>
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            Game Features
-          </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Experience the thrill of tag like never before with our innovative features
-          </p>
+      <section id="features" className="py-14 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+        <div className="text-center mb-14">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-gray-800 dark:text-gray-100 mb-4" style={{fontFamily: 'Luckiest Guy, Comic Sans MS, cursive'}}>Game Features</h2>
+          <p className="text-lg text-gray-500 dark:text-gray-300 max-w-2xl mx-auto font-semibold" style={{fontFamily: 'Comic Sans MS, cursive'}}>Experience the fun and strategy of tag with these features!</p>
         </div>
-        
         <div className="grid md:grid-cols-3 gap-8">
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg hover:shadow-xl transition duration-300">
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mb-4">
-              <span className="text-2xl">👥</span>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">Team Play</h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              1-3 Taggers vs 2-6 Runners. Strategic team gameplay with dynamic role switching.
-            </p>
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-md hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700">
+            <div className="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4 text-3xl">👥</div>
+            <h3 className="text-xl font-extrabold text-indigo-700 dark:text-indigo-300 mb-2" style={{fontFamily: 'Luckiest Guy, Comic Sans MS, cursive'}}>Team Play</h3>
+            <p className="text-gray-700 dark:text-gray-200 font-semibold">1-2 Taggers vs 2-4 Runners. Team up, strategize, and outsmart your opponents!</p>
           </div>
-          
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg hover:shadow-xl transition duration-300">
-            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mb-4">
-              <span className="text-2xl">🎙️</span>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">Proximity Chat</h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              Chat with nearby players in real-time. Coordinate strategies or plan escapes!
-            </p>
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-md hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700">
+            <div className="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4 text-3xl">🎙️</div>
+            <h3 className="text-xl font-extrabold text-indigo-700 dark:text-indigo-300 mb-2" style={{fontFamily: 'Luckiest Guy, Comic Sans MS, cursive'}}>Proximity Chat</h3>
+            <p className="text-gray-700 dark:text-gray-200 font-semibold">Trash talk, coordinate, and make friends (or enemies) with real-time voice chat!</p>
           </div>
-          
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg hover:shadow-xl transition duration-300">
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mb-4">
-              <span className="text-2xl">🏗️</span>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">Dynamic Obstacles</h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              Navigate through challenging maps with strategic obstacles that change gameplay.
-            </p>
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-md hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700">
+            <div className="w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4 text-3xl">🏗️</div>
+            <h3 className="text-xl font-extrabold text-indigo-700 dark:text-indigo-300 mb-2" style={{fontFamily: 'Luckiest Guy, Comic Sans MS, cursive'}}>Dynamic Obstacles</h3>
+            <p className="text-gray-700 dark:text-gray-200 font-semibold">Dodge, jump, and weave through ever-changing maps and obstacles!</p>
           </div>
         </div>
       </section>
@@ -126,20 +113,30 @@ export default function Home() {
       </section>
 
       {/* Subscription Section */}
-      <section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+      {user && (<section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
             Ready to Play?
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-            Subscribe now to experience Lancelot
+            Subscribe now to play Taggit with your friends
           </p>
         </div>
         
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
           <CheckoutForm />
         </div>
-      </section>
+      </section>)}
+      {!user && (<section id="pricing" className="py-12 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+        <div className="text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            Join Us Today!
+          </h2>
+          <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
+            Taggit is free, but we like to pretend to take your money 💸. 
+          </p>
+        </div>
+      </section>)}
 
       {/* Tech Stack */}
       <section className="bg-gray-50 dark:bg-gray-900 py-16">
