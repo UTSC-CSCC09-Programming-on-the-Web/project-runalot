@@ -281,7 +281,6 @@ io.on('connection', (socket) => {
         };
       });
       
-      // Notify all players in waiting room to start game
       io.to(`waiting_${roomId}`).emit('gameStart', { roomId });
       
       // Move all players from waiting room to game room
@@ -299,7 +298,7 @@ io.on('connection', (socket) => {
       // Start broadcasting game state
       broadcastGameState();
 
-      // --- TIMER LOGIC ---
+      ////////////////// GAME TIMER /////////////////////////////////
       if (gameState.timers[roomId]) {
         clearTimeout(gameState.timers[roomId]);
       }
@@ -351,7 +350,7 @@ socket.on('playerPeerReady', (data) => {
     vy: 0,
     activeKeys: new Set(),
     tagger: false,
-    socketId: socket.id // Store socketId
+    socketId: socket.id
   };
 
   socket.emit('welcome', { clientId, message: 'Server working' });
@@ -360,39 +359,75 @@ socket.on('playerPeerReady', (data) => {
   socket.on('startGame', () => {
     const room = gameState.rooms[roomId];
     if (!room || room.started) {
-      // Game already started or room doesn't exist
       return;
     }
 
     console.log(`Client ${clientId} requested to start the game in room ${roomId}`);
     room.started = true; // Mark the game as started
 
-    const playerIds = Object.keys(room.players);
+    let playerIds = Object.keys(room.players);
     if (playerIds.length > 0) {
+      // Randomize player order
+      playerIds = playerIds.sort(() => Math.random() - 0.5);
       const taggerCount = Math.min(2, Math.floor(playerIds.length/2));
-      for (let i = 0; i < taggerCount; i++) {
-        const taggerId = playerIds[i];
-        room.players[taggerId].tagger = true;
-        room.players[taggerId].x = 300 + i * 50;
-        room.players[taggerId].y = 300;
+      const taggerIds = playerIds.slice(0, taggerCount);
+      const runnerIds = playerIds.slice(taggerCount);
+
+      const corners = [
+        { x: 96, y: 96 },
+        { x: 96, y: 30 * 31 - 96 },
+        { x: 30 * 31 - 128, y: 96 },
+        { x: 30 * 31 - 96, y: 30 * 31 - 96 }
+      ];
+      const center = { x: Math.floor((30 * 32)/2), y: Math.floor((30 * 32)/2) };
+
+
+      if (taggerIds.length === 2) {
+        room.players[taggerIds[0]].tagger = true;
+        room.players[taggerIds[0]].x = center.x - 80;
+        room.players[taggerIds[0]].y = center.y;
+        room.players[taggerIds[1]].tagger = true;
+        room.players[taggerIds[1]].x = center.x + 80;
+        room.players[taggerIds[1]].y = center.y;
+      } else {
+        taggerIds.forEach((id) => {
+          room.players[id].tagger = true;
+          room.players[id].x = center.x + 32;
+          room.players[id].y = center.y;
+        });
       }
 
-      // Set positions for non-taggers
-      for (let i = taggerCount; i < playerIds.length; i++) {
-        const playerId = playerIds[i];
-        room.players[playerId].tagger = false;
-        room.players[playerId].x = 96;
-        room.players[playerId].y = 128;
+      // Assign runners to corners (never more than 4)
+      runnerIds.forEach((id, idx) => {
+        room.players[id].tagger = false;
+        const pos = corners[idx];
+        room.players[id].x = pos.x;
+        room.players[id].y = pos.y;
+      });
+
+      // Build a playerRoles object: { [id]: { tagger: bool, order: number } }
+      const playerRoles = {};
+      for (const id of playerIds) {
+        const isTagger = room.players[id].tagger;
+        let order;
+        if (isTagger) {
+          order = taggerIds.indexOf(id) + 1;
+        } else {
+          order = runnerIds.indexOf(id) + 1;
+        }
+        playerRoles[id] = { tagger: isTagger, order };
       }
-      
-      // Notify all players in the room of their role
+
+      // Notify all players in the room of their own role and all roles
       for (const id of playerIds) {
         const player = room.players[id];
         const playerSocket = io.sockets.sockets.get(player.socketId);
-        if(playerSocket){
-            const isTagger = player.tagger;
-            // Emit to the specific client's socket
-            io.to(player.socketId).emit('gameStarted', { tagger: isTagger });
+        if (playerSocket) {
+          io.to(player.socketId).emit('gameStarted', {
+            tagger: playerRoles[id].tagger,
+            order: playerRoles[id].order,
+            playerRoles: playerRoles // send all roles for all players
+          });
         }
       }
     }

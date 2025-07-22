@@ -5,10 +5,13 @@ import Peer from 'peerjs';
 
 
 interface PhaserGameProps {
-    // Props can be added here if needed later, e.g., to pass game configurations
     socketIo: any;
     clientId: string;
     roomId: string;
+    initialRoleMessage?: string | null;
+    isTagger: boolean;
+    order: number;
+    playerRoles?: { [id: string]: { tagger: boolean, order: number } } | null;
 }
 
 
@@ -19,15 +22,23 @@ class BootScene extends Phaser.Scene {
 
     preload() {
         const tilesetURL = '/assets/tilesets/tileset.png';
-        console.log(`Initiating preload for your 8x8 tileset (32x32 tiles) from: ${tilesetURL}`);
         this.load.spritesheet('tileset_custom', tilesetURL, {
             frameWidth: 32,
             frameHeight: 32
         });
-        this.load.spritesheet('player', '/assets/sprites/george.png', {
-            frameWidth: 48,
-            frameHeight: 48
-        });
+        // Preload all possible tagger/runner sprites for up to 2 taggers and 4 runners
+        for (let i = 1; i <= 2; i++) {
+            this.load.spritesheet(`Tagger${i}`, `/assets/sprites/Tagger${i}.png`, {
+                frameWidth: 32,
+                frameHeight: 32
+            });
+        }
+        for (let i = 1; i <= 4; i++) {
+            this.load.spritesheet(`Runner${i}`, `/assets/sprites/Runner${i}.png`, {
+                frameWidth: 32,
+                frameHeight: 32
+            });
+        }
     }
 
     create() {
@@ -39,28 +50,28 @@ class BootScene extends Phaser.Scene {
 
 const OBSTACLE_MATRIX: number[][] = [
 [304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304],
-[304,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,41,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,41,304],
-[304,41,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,41,41,-1,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,304],
-[304,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,41,-1,41,-1,-1,41,-1,41,-1,-1,304],
-[304,-1,-1,-1,-1,-1,-1,41,-1,41,41,-1,-1,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,304],
-[304,-1,-1,41,-1,-1,-1,-1,-1,-1,-1,41,-1,41,-1,-1,-1,41,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,-1,304],
-[304,-1,-1,41,-1,-1,-1,41,-1,-1,41,-1,-1,-1,-1,-1,41,-1,41,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,304],
-[304,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,41,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,304],
-[304,-1,-1,-1,41,-1,41,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,304],
-[304,-1,-1,-1,41,-1,-1,41,-1,-1,-1,-1,-1,-1,41,41,-1,-1,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,304],
-[304,-1,-1,41,-1,-1,-1,-1,-1,-1,-1,41,41,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,304],
-[304,41,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,41,304],
-[304,-1,41,-1,-1,41,-1,-1,41,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,41,-1,-1,304],
-[304,-1,-1,41,-1,41,41,-1,-1,-1,41,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,41,-1,-1,41,304],
-[304,-1,-1,-1,-1,-1,41,-1,-1,41,-1,-1,41,-1,-1,41,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,41,-1,-1,304],
-[304,-1,41,-1,-1,41,-1,-1,41,-1,-1,-1,-1,-1,-1,41,-1,-1,-1,41,-1,41,-1,41,-1,-1,-1,-1,-1,304],
-[304,-1,41,-1,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,-1,41,-1,-1,-1,304],
-[304,-1,-1,41,-1,-1,-1,41,-1,41,-1,41,-1,-1,-1,-1,41,-1,41,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,304],
-[304,-1,-1,-1,41,-1,-1,41,-1,-1,-1,-1,-1,-1,41,-1,-1,41,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,304],
-[304,-1,-1,-1,-1,-1,-1,-1,-1,41,-1,-1,41,-1,-1,-1,41,-1,-1,-1,41,41,-1,-1,-1,-1,41,-1,-1,304],
-[304,-1,41,-1,41,-1,-1,-1,41,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,41,-1,-1,-1,304],
-[304,-1,-1,-1,-1,-1,-1,41,-1,-1,-1,-1,-1,-1,41,-1,-1,41,-1,41,-1,-1,-1,-1,-1,-1,41,-1,41,304],
-[304,-1,-1,-1,-1,-1,41,-1,-1,41,41,-1,-1,-1,41,-1,41,-1,-1,-1,41,-1,-1,-1,-1,41,-1,-1,-1,304],
+[304,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,67,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,67,304],
+[304,67,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,67,67,-1,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,304],
+[304,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,67,-1,67,-1,-1,67,-1,67,-1,-1,304],
+[304,-1,-1,-1,-1,-1,-1,67,-1,67,67,-1,-1,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,304],
+[304,-1,-1,67,-1,-1,-1,-1,-1,-1,-1,67,-1,67,-1,-1,-1,67,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,-1,304],
+[304,-1,-1,67,-1,-1,-1,67,-1,-1,67,-1,-1,-1,-1,-1,67,-1,67,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,304],
+[304,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,67,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,304],
+[304,-1,-1,-1,67,-1,67,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,304],
+[304,-1,-1,-1,67,-1,-1,67,-1,-1,-1,-1,-1,-1,67,67,-1,-1,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,304],
+[304,-1,-1,67,-1,-1,-1,-1,-1,-1,-1,67,67,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,304],
+[304,67,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,67,304],
+[304,-1,67,-1,-1,67,-1,-1,67,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,67,-1,-1,304],
+[304,-1,-1,67,-1,67,67,-1,-1,-1,67,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,67,-1,-1,67,304],
+[304,-1,-1,-1,-1,-1,67,-1,-1,67,-1,-1,67,-1,-1,67,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,67,-1,-1,304],
+[304,-1,67,-1,-1,67,-1,-1,67,-1,-1,-1,-1,-1,-1,67,-1,-1,-1,67,-1,67,-1,67,-1,-1,-1,-1,-1,304],
+[304,-1,67,-1,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,-1,67,-1,-1,-1,304],
+[304,-1,-1,67,-1,-1,-1,67,-1,67,-1,67,-1,-1,-1,-1,67,-1,67,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,304],
+[304,-1,-1,-1,67,-1,-1,67,-1,-1,-1,-1,-1,-1,67,-1,-1,67,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,304],
+[304,-1,-1,-1,-1,-1,-1,-1,-1,67,-1,-1,67,-1,-1,-1,67,-1,-1,-1,67,67,-1,-1,-1,-1,67,-1,-1,304],
+[304,-1,67,-1,67,-1,-1,-1,67,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,67,-1,-1,-1,304],
+[304,-1,-1,-1,-1,-1,-1,67,-1,-1,-1,-1,-1,-1,67,-1,-1,67,-1,67,-1,-1,-1,-1,-1,-1,67,-1,67,304],
+[304,-1,-1,-1,-1,-1,67,-1,-1,67,67,-1,-1,-1,67,-1,67,-1,-1,-1,67,-1,-1,-1,-1,67,-1,-1,-1,304],
 [304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304,304]
 ];
 
@@ -104,7 +115,7 @@ class MainScene extends Phaser.Scene {
         const tilePixelWidth = 32; 
         const tilePixelHeight = 32;
 
-        const targetTileIndex = 1;
+        const targetTileIndex = 325;
         const borderTileIndex = 304;
         const obstacleTileIndex = 41;
 
@@ -156,41 +167,63 @@ class MainScene extends Phaser.Scene {
         }
 
 
-        const player = this.physics.add.sprite(96, 128, 'player');
+
+        // Use correct sprite for local player
+        const isTagger = this.game.registry.get('isTagger');
+        const order = this.game.registry.get('order');
+        const localSpriteKey = isTagger ? `Tagger${order}` : `Runner${order}`;
+        const player = this.physics.add.sprite(96, 128, localSpriteKey);
         player.setOrigin(0, 0);
         player.setDisplaySize(32, 32);
         player.body.setSize(32, 32);
         player.body.setOffset(8, 8);
-        
         this.cameras.main.startFollow(player);
-        
         this.player = player;
 
-
-        this.anims.create({
-            key: 'down',
-            frames: [{key: 'player', frame: 0}, {key: 'player', frame: 4}, {key: 'player', frame: 8}, {key: 'player', frame: 12}],
-            frameRate: 8,
-            repeat: -1
-        });
-        this.anims.create({
-            key: 'left',
-            frames: [{key: 'player', frame: 1}, {key: 'player', frame: 5}, {key: 'player', frame: 9}, {key: 'player', frame: 13}],
-            frameRate: 8,
-            repeat: -1
-        });
-        this.anims.create({
-            key: 'up',
-            frames: [{key: 'player', frame: 2}, {key: 'player', frame: 6}, {key: 'player', frame: 10}, {key: 'player', frame: 14}],
-            frameRate: 8,
-            repeat: -1
-        });
-        this.anims.create({
-            key: 'right',
-            frames: [{key: 'player', frame: 3}, {key: 'player', frame: 7}, {key: 'player', frame: 11}, {key: 'player', frame: 15}],
-            frameRate: 8,
-            repeat: -1
-        });
+        // Define animations for all possible tagger and runner sprite sheets
+        const allSpriteKeys = ['Tagger1', 'Tagger2', 'Runner1', 'Runner2', 'Runner3', 'Runner4'];
+        for (const key of allSpriteKeys) {
+            this.anims.create({
+                key: `down_${key}`,
+                frames: [
+                    { key, frame: 0 },
+                    { key, frame: 1 },
+                    { key, frame: 2 }
+                ],
+                frameRate: 8,
+                repeat: -1
+            });
+            this.anims.create({
+                key: `left_${key}`,
+                frames: [
+                    { key, frame: 3 },
+                    { key, frame: 4 },
+                    { key, frame: 5 }
+                ],
+                frameRate: 8,
+                repeat: -1
+            });
+            this.anims.create({
+                key: `right_${key}`,
+                frames: [
+                    { key, frame: 6 },
+                    { key, frame: 7 },
+                    { key, frame: 8 }
+                ],
+                frameRate: 8,
+                repeat: -1
+            });
+            this.anims.create({
+                key: `up_${key}`,
+                frames: [
+                    { key, frame: 9 },
+                    { key, frame: 10 },
+                    { key, frame: 11 }
+                ],
+                frameRate: 8,
+                repeat: -1
+            });
+        }
 
 
         this.cursors = this.input.keyboard?.createCursorKeys();
@@ -292,28 +325,37 @@ class MainScene extends Phaser.Scene {
             }
 
             // Update animation based on server velocity for local player
-            if (playerData.vx < 0) this.player.anims.play('left', true);
-            else if (playerData.vx > 0) this.player.anims.play('right', true);
-            else if (playerData.vy < 0) this.player.anims.play('up', true);
-            else if (playerData.vy > 0) this.player.anims.play('down', true);
+            const localAnimKey = this.player.texture.key;
+            if (playerData.vx < 0) this.player.anims.play(`left_${localAnimKey}`, true);
+            else if (playerData.vx > 0) this.player.anims.play(`right_${localAnimKey}`, true);
+            else if (playerData.vy < 0) this.player.anims.play(`up_${localAnimKey}`, true);
+            else if (playerData.vy > 0) this.player.anims.play(`down_${localAnimKey}`, true);
             else this.player.anims.stop(); // Idle if no velocity
         }
 
         // Update or create other players
+        const playerRoles = this.game.registry.get('playerRoles') || {};
         allServerPlayerIds.forEach(clientId => {
             if (clientId === this.localClientId) return; // Already handled
 
             const playerData = serverPlayers[clientId];
             let otherPlayerSprite = this.otherPlayers.get(clientId);
+            const meta = playerRoles[clientId];
+            // if (!meta) {
+            //     console.warn(`[PhaserGame] playerRoles missing for clientId: ${clientId}. playerRoles:`, playerRoles);
+            // }
+            const safeMeta = meta || { tagger: false, order: 1 };
+            const spriteKey = safeMeta.tagger ? `Tagger${safeMeta.order}` : `Runner${safeMeta.order}`;
 
             if (!otherPlayerSprite) { // Create new sprite for new player
-                console.log(`Creating sprite for new player ${clientId}`);
-                otherPlayerSprite = this.physics.add.sprite(playerData.x, playerData.y, 'player');
+                otherPlayerSprite = this.physics.add.sprite(playerData.x, playerData.y, spriteKey);
                 otherPlayerSprite.setOrigin(0, 0);
                 otherPlayerSprite.setDisplaySize(32, 32);
                 otherPlayerSprite.body.setSize(32, 32);
                 otherPlayerSprite.body.setOffset(8, 8);
                 this.otherPlayers.set(clientId, otherPlayerSprite);
+            } else if (otherPlayerSprite.texture.key !== spriteKey) {
+                otherPlayerSprite.setTexture(spriteKey);
             }
 
             // Tween existing other player sprite
@@ -326,10 +368,11 @@ class MainScene extends Phaser.Scene {
             });
 
             // Update animation for other players based on server velocity
-            if (playerData.vx < 0) otherPlayerSprite.anims.play('left', true);
-            else if (playerData.vx > 0) otherPlayerSprite.anims.play('right', true);
-            else if (playerData.vy < 0) otherPlayerSprite.anims.play('up', true);
-            else if (playerData.vy > 0) otherPlayerSprite.anims.play('down', true);
+            const otherAnimKey = otherPlayerSprite.texture.key;
+            if (playerData.vx < 0) otherPlayerSprite.anims.play(`left_${otherAnimKey}`, true);
+            else if (playerData.vx > 0) otherPlayerSprite.anims.play(`right_${otherAnimKey}`, true);
+            else if (playerData.vy < 0) otherPlayerSprite.anims.play(`up_${otherAnimKey}`, true);
+            else if (playerData.vy > 0) otherPlayerSprite.anims.play(`down_${otherAnimKey}`, true);
             else otherPlayerSprite.anims.stop();
         });
 
@@ -344,12 +387,33 @@ class MainScene extends Phaser.Scene {
     }
 }
 
-const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, initialRoleMessage, isTagger, order, playerRoles }) => {
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameInstanceRef = useRef<Phaser.Game | null>(null);
     const [gameOver, setGameOver] = useState(false);
     const [gameOverMessage, setGameOverMessage] = useState('');
     const [isWinner, setIsWinner] = useState(false);
+    const [roleMessage, setRoleMessage] = useState<string>("");
+    const initialRoleShown = useRef(false);
+
+    useEffect(() => {
+        if (isTagger !== undefined && !initialRoleShown.current) {
+            setRoleMessage("You are a " + (isTagger ? "TAGGER" : "RUNNER"));
+            initialRoleShown.current = true;
+            setTimeout(() => setRoleMessage(''), 2000);
+        }
+    }, [isTagger]);
+
+    useEffect(() => {
+        if (gameInstanceRef.current) {
+            gameInstanceRef.current.registry.set('isTagger', isTagger);
+            gameInstanceRef.current.registry.set('order', order);
+            if (playerRoles) {
+                gameInstanceRef.current.registry.set('playerRoles', playerRoles);
+            }
+        }
+    }, [isTagger, order, playerRoles]);
+
     // PeerJS voice chat refs
     const peerRef = useRef<Peer | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
@@ -385,6 +449,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
             gameInstanceRef.current = new Phaser.Game(config);
             gameInstanceRef.current.registry.set('clientId', clientId);
             gameInstanceRef.current.registry.set('roomId', roomId);
+            gameInstanceRef.current.registry.set('isTagger', isTagger);
+            gameInstanceRef.current.registry.set('order', order);
+            gameInstanceRef.current.registry.set('playerRoles', playerRoles);
             console.log('[PhaserGame] Game instance created.');
         }
 
@@ -451,12 +518,25 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
             setIsWinner(true);
         };
 
+        // Show tagger/runner message on gameStarted
+        const onGameStarted = (data: any) => {
+            if (data && data.tagger !== undefined) {
+                if (data.tagger) {
+                    setRoleMessage('You are the TAGGER!');
+                } else {
+                    setRoleMessage('You are a RUNNER!');
+                }
+                setTimeout(() => setRoleMessage(''), 2000);
+            }
+        };
+
         // Register listeners
         socketIo.on('connect', onConnect);
         socketIo.on('disconnect', onDisconnect);
         socketIo.on('gameStateUpdate', onGameStateUpdate);
         socketIo.on('gameOver', onGameOver);
         socketIo.on('winGame', onWinGame);
+        socketIo.on('gameStarted', onGameStarted);
 
         // Cleanup function
         return () => {
@@ -469,6 +549,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
             socketIo.off('gameStateUpdate', onGameStateUpdate);
             socketIo.off('gameOver', onGameOver);
             socketIo.off('winGame', onWinGame);
+            socketIo.off('gameStarted', onGameStarted);
         };
 
     }, [socketIo]);
@@ -601,30 +682,92 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
             className="relative overflow-hidden"
             style={{ width: `${viewportWidth}px`, height: `${viewportHeight}px` }}
         >
+            {/* Vignette overlay for dark edges and overall darkness */}
+            <div
+                className="pointer-events-none absolute inset-0 z-10"
+                style={{
+                    background: `radial-gradient(ellipse at center, rgba(0,0,0,0) 30%, rgba(0,0,0,1) 100%)`,
+                    mixBlendMode: 'multiply',
+                }}
+            />
+            {/* Subtle dark overlay for overall darkness */}
+            <div
+                className="pointer-events-none absolute inset-0 z-10"
+                style={{
+                    background: 'rgba(0,0,0,0.20)',
+                }}
+            />
             <div 
                 ref={gameContainerRef} 
                 id="phaser-game-container" 
                 style={{ width: `${viewportWidth}px`, height: `${viewportHeight}px` }} 
+                className="relative z-0"
             />
             
-            {gameOver && (
-                <div className="absolute inset-0 bg-black bg-opacity-80 flex flex-col justify-center items-center text-white text-2xl font-sans text-center z-[1000]">
-                    <div className={`
-                        ${isWinner 
-                            ? 'bg-gradient-to-br from-green-500 to-green-600 border-green-800' 
-                            : 'bg-gradient-to-br from-red-500 to-red-600 border-red-800'
-                        }
-                        p-8 rounded-2xl border-4 shadow-2xl max-w-md
-                        animate-[fadeIn_0.5s_ease-in-out]
-                    `}>
-                        <h2 className="text-4xl font-bold mb-5 drop-shadow-lg">
-                            {isWinner ? '🎉 Victory! 🎉' : '💥 Game Over 💥'}
+            {/* ChatGPT: give the message a more spooky feel with animations */}
+            {roleMessage && (
+                <div className="absolute inset-0 z-[1000] flex flex-col justify-center items-center pointer-events-none">
+                    {/* Spooky mist background */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-gray-800/80 to-black/90 animate-spookyMist pointer-events-none" style={{ filter: 'blur(2px)' }} />
+                    {/* Flickering border and glowing text */}
+                    <div className="relative p-10 rounded-3xl border-4 max-w-md shadow-2xl bg-gradient-to-br from-gray-900/90 to-black/90 border-gray-700 animate-spookyBorder">
+                        <h2 className="text-5xl font-extrabold mb-4 text-center text-gray-200 drop-shadow-[0_0_16px_#444] animate-spookyGlow tracking-widest select-none" style={{ fontFamily: 'Creepster, \"Cinzel Decorative\", serif' }}>
+                            {roleMessage}
                         </h2>
-                        
-                        <p className="text-lg leading-relaxed mb-8">
-                            {gameOverMessage}
+                        <div className="w-full flex justify-center">
+                            <span className="block w-16 h-2 bg-gray-700 rounded-full opacity-60 animate-spookyPulse" />
+                        </div>
+                    </div>
+                    <style jsx global>{`
+                        @keyframes spookyMist {
+                            0% { opacity: 0.95; filter: blur(2px) brightness(1); }
+                            50% { opacity: 0.85; filter: blur(3px) brightness(1.1); }
+                            100% { opacity: 0.95; filter: blur(2px) brightness(1); }
+                        }
+                        .animate-spookyMist { animation: spookyMist 3s ease-in-out infinite; }
+                        @keyframes spookyGlow {
+                            0%, 100% { text-shadow: 0 0 16px #444, 0 0 32px #222; }
+                            50% { text-shadow: 0 0 32px #fff, 0 0 48px #222; }
+                        }
+                        .animate-spookyGlow { animation: spookyGlow 2.2s alternate infinite; }
+                        @keyframes spookyPulse {
+                            0%, 100% { opacity: 0.6; transform: scaleX(1); }
+                            50% { opacity: 1; transform: scaleX(1.2); }
+                        }
+                        .animate-spookyPulse { animation: spookyPulse 1.5s infinite; }
+                        @keyframes spookyBorder {
+                            0%, 100% { box-shadow: 0 0 32px 8px #444c, 0 0 0 0 #000; }
+                            50% { box-shadow: 0 0 48px 16px #222e, 0 0 8px 2px #000; }
+                        }
+                        .animate-spookyBorder { animation: spookyBorder 2.5s alternate infinite; }
+                    `}</style>
+                </div>
+            )}
+
+            {/* Game Over overlay with spooky style */}
+            {gameOver && (
+                <div className="absolute inset-0 z-[1000] flex flex-col justify-center items-center pointer-events-none">
+                    {/* Spooky mist background */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-gray-800/80 to-black/90 animate-spookyMist pointer-events-none" style={{ filter: 'blur(2px)' }} />
+                    {/* Flickering border and glowing text */}
+                    <div className={`relative p-10 rounded-3xl border-4 max-w-md shadow-2xl bg-gradient-to-br from-gray-900/90 to-black/90 border-gray-700 animate-spookyBorder pointer-events-auto`}>
+                        <h2 className={`text-5xl font-extrabold mb-4 text-center drop-shadow-[0_0_16px_#444] animate-spookyGlow tracking-widest select-none ${isWinner ? 'text-green-400' : 'text-red-400'}`} style={{ fontFamily: 'Creepster, "Cinzel Decorative", serif' }}>
+                            {isWinner
+                                ? (isTagger
+                                    ? '👻 The Tagger Prevails! 👻'
+                                    : '🕯️ The Runner Escapes! 🕯️')
+                                : '💀 Game Over 💀'}
+                        </h2>
+                        <p className="text-lg leading-relaxed mb-8 text-gray-200 text-center">
+                            {isWinner
+                                ? (isTagger
+                                    ? 'You have haunted every runner. The night is yours!'
+                                    : 'You slipped through the shadows and survived the tagger!')
+                                : gameOverMessage}
                         </p>
-                        
+                        <div className="w-full flex justify-center mb-6">
+                            <span className="block w-16 h-2 bg-gray-700 rounded-full opacity-60 animate-spookyPulse" />
+                        </div>
                         <div className="flex gap-4 justify-center">
                             <button
                                 onClick={handlePlayAgain}
@@ -632,7 +775,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
                             >
                                 Play Again
                             </button>
-                            
                             <button
                                 onClick={handleReturnToDashboard}
                                 className="px-6 py-3 text-base font-bold bg-gray-600 text-white border-none rounded-lg cursor-pointer transition-all duration-300 shadow-lg hover:bg-gray-700 hover:-translate-y-0.5 hover:shadow-xl"
@@ -641,6 +783,29 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId }) =
                             </button>
                         </div>
                     </div>
+                    <style jsx global>{`
+                        @keyframes spookyMist {
+                            0% { opacity: 0.95; filter: blur(2px) brightness(1); }
+                            50% { opacity: 0.85; filter: blur(3px) brightness(1.1); }
+                            100% { opacity: 0.95; filter: blur(2px) brightness(1); }
+                        }
+                        .animate-spookyMist { animation: spookyMist 3s ease-in-out infinite; }
+                        @keyframes spookyGlow {
+                            0%, 100% { text-shadow: 0 0 16px #444, 0 0 32px #222; }
+                            50% { text-shadow: 0 0 32px #fff, 0 0 48px #222; }
+                        }
+                        .animate-spookyGlow { animation: spookyGlow 2.2s alternate infinite; }
+                        @keyframes spookyPulse {
+                            0%, 100% { opacity: 0.6; transform: scaleX(1); }
+                            50% { opacity: 1; transform: scaleX(1.2); }
+                        }
+                        .animate-spookyPulse { animation: spookyPulse 1.5s infinite; }
+                        @keyframes spookyBorder {
+                            0%, 100% { box-shadow: 0 0 32px 8px #444c, 0 0 0 0 #000; }
+                            50% { box-shadow: 0 0 48px 16px #222e, 0 0 8px 2px #000; }
+                        }
+                        .animate-spookyBorder { animation: spookyBorder 2.5s alternate infinite; }
+                    `}</style>
                 </div>
             )}
         </div>
