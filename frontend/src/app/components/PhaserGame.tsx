@@ -668,12 +668,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, ini
         setGameOverMessage('');
         setIsWinner(false);
         // Reconnect to a new game or return to waiting room
-        window.location.href = '/play'; // Redirect to dashboard to start a new game
+        window.location.href = '/play';
     };
 
-    const handleReturnToDashboard = () => {
+    const handleReturnToHome = () => {
         socketIo.disconnect();
-        window.location.href = '/dashboard';
+        window.location.href = '/';
     };
 
 
@@ -776,10 +776,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, ini
                                 Play Again
                             </button>
                             <button
-                                onClick={handleReturnToDashboard}
+                                onClick={handleReturnToHome}
                                 className="px-6 py-3 text-base font-bold bg-gray-600 text-white border-none rounded-lg cursor-pointer transition-all duration-300 shadow-lg hover:bg-gray-700 hover:-translate-y-0.5 hover:shadow-xl"
                             >
-                                Dashboard
+                                Home
                             </button>
                         </div>
                     </div>

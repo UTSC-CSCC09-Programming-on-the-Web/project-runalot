@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Project Lancelot - Ultimate Multiplayer Tag Game",
+  title: "Taggit - Ultimate Multiplayer Tag Game",
   description: "Experience the ultimate multiplayer tag game with proximity chat and dynamic obstacles. Join or create rooms and play with friends!",
 };
   
