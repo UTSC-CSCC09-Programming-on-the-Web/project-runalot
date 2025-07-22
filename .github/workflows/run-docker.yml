@@ -3,7 +3,7 @@ on:
   push:
     # Only run this workflow if it is a commit to main.
     branches:
-      - feat/implement-spa
+      - main
 
 jobs:
   build:

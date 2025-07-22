@@ -4,7 +4,10 @@ on:
   push:
     # Only run this workflow if it is a commit to main.
     branches:
-      - feat/implement-spa
+      - main
+    # Only run this workflow if the commit has modified files from backend
+    paths:
+      - backend/**
 
 env:
   IMAGE_NAME: backend-taggit
