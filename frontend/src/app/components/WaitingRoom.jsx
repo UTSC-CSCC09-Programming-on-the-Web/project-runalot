@@ -17,7 +17,7 @@ const PhaserGameNoSSR = dynamic(
   }
 );
 
-export default function WaitingRoom() {
+export default function WaitingRoom({ navigate }) {
   const { user, loading } = useAuth();
   const [gameState, setGameState] = useState('waiting'); // 'waiting', 'ready', 'playing'
   const [roomId, setRoomId] = useState('');
@@ -168,7 +168,7 @@ export default function WaitingRoom() {
   };
 
   const goHome = () => {
-    window.location.href = '/';
+    navigate('home');
   };
 
   if (loading) {
@@ -207,7 +207,7 @@ export default function WaitingRoom() {
           <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-100 mb-4">Authentication Required</h2>
           <p className="text-gray-500 dark:text-gray-300 mb-6">Please log in to join the game.</p>
           <button
-            onClick={() => window.location.href = '/'}
+            onClick={() => navigate('home')}
             className="bg-gray-800 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200"
           >
             Go to Home
@@ -248,6 +248,7 @@ export default function WaitingRoom() {
                 order={order}
                 playerRoles={playerRoles}
                 initialRoleMessage={initialRoleRef.current}
+                navigate={navigate}
               />
             ) : (
               <div className="text-center py-10">

@@ -3,7 +3,7 @@
 import { useAuth } from "../contexts/AuthContext";
 import { useState } from "react";
 
-export default function Navbar() {
+export default function Navbar({ navigate, currentView }) {
   const { user, loading, login, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -14,34 +14,55 @@ export default function Navbar() {
           {/* Logo */}
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <span className="text-2xl font-bold">
+              <button 
+                onClick={() => navigate('home')}
+                className="text-2xl font-bold focus:outline-none"
+              >
                 <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">TAG</span>
                 <span className="text-indigo-700 dark:text-indigo-400">GIT</span>
-              </span>
+              </button>
             </div>
           </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-4">
-              <a
-                href="#features"
-                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition duration-300"
+              {currentView === 'home' && (
+                <>
+                  <a
+                    href="#features"
+                    className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition duration-300"
+                  >
+                    Features
+                  </a>
+                  <a
+                    href="#how-it-works"
+                    className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition duration-300"
+                  >
+                    How It Works
+                  </a>
+                  <a
+                    href="#pricing"
+                    className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition duration-300"
+                  >
+                    Pricing
+                  </a>
+                </>
+              )}
+              <button
+                onClick={() => navigate('credits')}
+                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition duration-300 focus:outline-none"
               >
-                Features
-              </a>
-              <a
-                href="#how-it-works"
-                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition duration-300"
-              >
-                How It Works
-              </a>
-              <a
-                href="#pricing"
-                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition duration-300"
-              >
-                Pricing
-              </a>
+                Credits
+              </button>
+              {user && (
+                <button
+                  onClick={() => navigate('play')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition duration-300 focus:outline-none"
+                >
+                  Play Game
+                </button>
+              )}
             </div>
           </div>
 
@@ -130,24 +151,51 @@ export default function Navbar() {
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200 dark:border-gray-700">
-              <a
-                href="#features"
-                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium"
+              {currentView === 'home' && (
+                <>
+                  <a
+                    href="#features"
+                    className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Features
+                  </a>
+                  <a
+                    href="#how-it-works"
+                    className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    How It Works
+                  </a>
+                  <a
+                    href="#pricing"
+                    className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Pricing
+                  </a>
+                </>
+              )}
+              <button
+                onClick={() => {
+                  navigate('credits');
+                  setIsMenuOpen(false);
+                }}
+                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium w-full text-left focus:outline-none"
               >
-                Features
-              </a>
-              <a
-                href="#how-it-works"
-                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium"
-              >
-                How It Works
-              </a>
-              <a
-                href="#pricing"
-                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium"
-              >
-                Pricing
-              </a>
+                Credits
+              </button>
+              {user && (
+                <button
+                  onClick={() => {
+                    navigate('play');
+                    setIsMenuOpen(false);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white block px-3 py-2 rounded-md text-base font-medium w-full text-left focus:outline-none"
+                >
+                  Play Game
+                </button>
+              )}
               
               {/* Mobile Authentication */}
               <div className="pt-4 pb-3 border-t border-gray-200 dark:border-gray-700">
