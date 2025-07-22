@@ -240,7 +240,7 @@ export default function WaitingRoom() {
             )}
           </div>
           {/* Countdown Timer Below Game */}
-          <CountdownTimer key={gameState} />
+          {gameStarted && <CountdownTimer key={gameState} />}
         </div>
         <style jsx global>{`
           @keyframes spookyMist {

@@ -375,9 +375,9 @@ socket.on('playerPeerReady', (data) => {
 
       const corners = [
         { x: 96, y: 96 },
-        { x: 96, y: 30 * 31 - 96 },
-        { x: 30 * 31 - 128, y: 96 },
-        { x: 30 * 31 - 96, y: 30 * 31 - 96 }
+        { x: 96, y: 32 * 31 - 96 },
+        { x: 32 * 31 - 128, y: 96 },
+        { x: 32 * 31 - 96, y: 32 * 31 - 96 }
       ];
       const center = { x: Math.floor((30 * 32)/2), y: Math.floor((30 * 32)/2) };
 
