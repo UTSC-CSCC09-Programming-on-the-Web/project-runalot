@@ -686,7 +686,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, ini
             <div
                 className="pointer-events-none absolute inset-0 z-10"
                 style={{
-                    background: `radial-gradient(ellipse at center, rgba(0,0,0,0) 30%, rgba(0,0,0,1) 100%)`,
+                    background: `radial-gradient(ellipse at center, rgba(0,0,0,0) 50%, rgba(0,0,0,1) 100%)`,
                     mixBlendMode: 'multiply',
                 }}
             />
@@ -694,7 +694,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, ini
             <div
                 className="pointer-events-none absolute inset-0 z-10"
                 style={{
-                    background: 'rgba(0,0,0,0.20)',
+                    background: 'rgba(0,0,0,0.1)',
                 }}
             />
             <div 

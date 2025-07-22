@@ -33,7 +33,7 @@ export default function Home() {
               Ultimate online tag game. Run, chase, and outsmart your friends in a haunted arena!
             </p>
             {user && <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button onClick={goToGame} className="bg-gray-900 hover:bg-indigo-800 text-white font-extrabold py-3 px-10 rounded-xl text-xl shadow-lg border-2 border-gray-700 hover:scale-105 transition-all duration-200 ease-out animate-spookyPulse" style={{fontFamily: 'Luckiest Guy, Comic Sans MS, cursive', letterSpacing: 2, textShadow: '0 0 8px #000'}}>
+              <button onClick={goToGame} className="bg-gray-900 hover:bg-indigo-600 cursor-pointer text-white font-extrabold py-3 px-10 rounded-xl text-xl shadow-lg border-2 border-gray-400 hover:scale-105 transition-all duration-200 ease-out animate-spookyPulse" style={{fontFamily: 'Luckiest Guy, Comic Sans MS, cursive', letterSpacing: 2, textShadow: '0 0 8px #000'}}>
                 PLAY NOW
               </button>
             </div>}
