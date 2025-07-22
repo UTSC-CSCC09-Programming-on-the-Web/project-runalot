@@ -173,11 +173,28 @@ export default function WaitingRoom() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-500 dark:text-gray-300">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-950 to-black relative overflow-hidden">
+        {/* Spooky vignette overlay */}
+        <div className="pointer-events-none absolute inset-0 z-10" style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.85) 100%)', mixBlendMode: 'multiply'}} />
+        {/* Spooky mist overlay */}
+        <div className="pointer-events-none absolute inset-0 z-20 animate-spookyMist" style={{background: 'linear-gradient(120deg, rgba(30,30,40,0.18) 0%, rgba(80,80,100,0.12) 100%)', filter: 'blur(2.5px)'}} />
+        <div className="text-center relative z-30">
+          <div className="w-12 h-12 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-6 shadow-lg"></div>
+          <p className="text-2xl font-bold text-gray-100 animate-spookyGlow" style={{fontFamily: 'Creepster, Luckiest Guy, Comic Sans MS, cursive', letterSpacing: 2, textShadow: '0 0 16px #fff, 0 0 32px #a855f7'}}>Loading...</p>
         </div>
+        <style jsx global>{`
+          @keyframes spookyMist {
+            0% { opacity: 0.95; filter: blur(2.5px) brightness(1); }
+            50% { opacity: 0.85; filter: blur(3.5px) brightness(1.1); }
+            100% { opacity: 0.95; filter: blur(2.5px) brightness(1); }
+          }
+          .animate-spookyMist { animation: spookyMist 4s ease-in-out infinite; }
+          @keyframes spookyGlow {
+            0%, 100% { text-shadow: 0 0 24px #fff, 0 0 48px #a855f7; }
+            50% { text-shadow: 0 0 48px #fff, 0 0 64px #a855f7; }
+          }
+          .animate-spookyGlow { animation: spookyGlow 2.8s alternate infinite; }
+        `}</style>
       </div>
     );
   }
