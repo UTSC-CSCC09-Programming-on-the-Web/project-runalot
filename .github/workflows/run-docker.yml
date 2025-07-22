@@ -4,6 +4,7 @@ on:
     # Only run this workflow if it is a commit to main.
     branches:
       - main
+      - feat/implement-spa
 
 jobs:
   build:

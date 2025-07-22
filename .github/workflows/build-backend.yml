@@ -5,9 +5,7 @@ on:
     # Only run this workflow if it is a commit to main.
     branches:
       - main
-    # Only run this workflow if the commit has modified files from backend
-    paths:
-      - backend/**
+      - feat/implement-spa
 
 env:
   IMAGE_NAME: backend-taggit
