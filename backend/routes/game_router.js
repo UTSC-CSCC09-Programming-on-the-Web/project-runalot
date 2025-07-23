@@ -25,8 +25,8 @@ tagRouter.use(bodyParser.json());
 // --- Game Configuration ---
 const PLAYER_SPEED = 180;
 const TAGGER_SPEED = 200;
-const SERVER_TICK_RATE = 1000 / 60; // 60 FPS
-const TILE_SIZE = 32; // pixels
+const SERVER_TICK_RATE = 1000 / 60;
+const TILE_SIZE = 32;
 
 
 const OBSTACLE_MATRIX = [
@@ -118,6 +118,7 @@ io.on('connection', (socket) => {
   
   // Get user from Passport session
   const user = socket.request.user;
+  const roomId = socket.handshake.query.roomId;
   
   if (!user) {
     console.log('Connection attempt with no authenticated user. Disconnecting.');
@@ -174,7 +175,15 @@ io.on('connection', (socket) => {
       });
       return;
     }
-    
+
+    if(!ClientJoined.subscription){
+      socket.emit('roomJoinError', {
+        error: 'No active subscription',
+        message: `You need an active subscription to join a room.`
+      });
+      return;
+    }
+
     // When creating, check if room ID is already in use
     if (isCreating && gameState.waitingRooms[roomId]) {
       console.log(`Room ${roomId} already exists for player ${clientId}`);
@@ -264,7 +273,6 @@ io.on('connection', (socket) => {
     const waitingRoom = gameState.waitingRooms[roomId];
     
     if (waitingRoom && waitingRoom.host === clientId) {
-      console.log(`Host ${clientId} starting game in room ${roomId}`);
       
       // Create game room from waiting room
       if (!gameState.rooms[roomId]) {
@@ -275,6 +283,13 @@ io.on('connection', (socket) => {
       
       // Move players from waiting room to game room
       waitingRoom.players.forEach(player => {
+        const playerUser = User.findOne({
+          where: { userId: String(player.id) }
+        });
+        let playerName;
+        if( playerUser ) {
+          playerName = playerUser.username || playerUser.email || 'Guest';
+        }
         gameState.rooms[roomId].players[player.id] = {
           x: 96,
           y: 128,
@@ -282,6 +297,7 @@ io.on('connection', (socket) => {
           vy: 0,
           activeKeys: new Set(),
           tagger: false,
+          playerName: playerName,
           socketId: player.socketId // Carry over socketId
         };
       });
@@ -412,18 +428,20 @@ io.on('connection', (socket) => {
   });
 
   socket.on('keyPress', (payload) => {
-    const { roomId } = payload;
+    // console.log(`Player ${clientId} pressed key: ${payload.key} in room ${payload.roomId}`);
     const room = gameState.rooms[roomId];
     if (!room) return;
     const player = room.players[clientId];
+    console.log(`Player ${clientId} pressed key: ${payload.key} in room ${roomId}`);
     if (!player) return;
     player.activeKeys.add(payload.key);
   });
 
   socket.on('keyRelease', (payload) => {
-    const { roomId } = payload;
+    // console.log(`Player ${clientId} released key: ${payload.key} in room ${payload.roomId}`);
     const room = gameState.rooms[roomId];
     if (!room) return;
+    console.log(`Player ${clientId} released key: ${payload.key} in room ${roomId}`);
     const player = room.players[clientId];
     if (!player) return;
     player.activeKeys.delete(payload.key);
@@ -509,6 +527,8 @@ function gameLoop() {
 
       player.vx = 0;
       player.vy = 0;
+
+      console.log(`Processing player ${clientId} in room ${player}`);
 
       if (player.activeKeys.has('Left') && !player.tagger) player.vx = -PLAYER_SPEED;
       if (player.activeKeys.has('Right') && !player.tagger) player.vx = PLAYER_SPEED;
@@ -608,6 +628,8 @@ function gameLoop() {
 
       player.x = Math.round(finalX);
       player.y = Math.round(finalY);
+
+      console.log(`Player ${clientId} moved to (${player.x}, ${player.y}) in room ${roomId}`);
     });
 
     // --- Proximity Voice Chat Logic ---
@@ -702,7 +724,7 @@ function gameLoop() {
           const playerSocket = io.sockets.sockets.get(otherPlayer.socketId);
           if (playerSocket) {
             console.log(`Player ${otherId} was tagged by ${taggerId} in room ${roomId}`);
-            playerSocket.emit('gameOver', { message: 'You were tagged! Game over.' });
+            playerSocket.emit('gameOver', { message: 'You were caught and eaten by the ghosts!' });
           }
 
           delete room.players[otherId];
