@@ -5,7 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 import Home from './Home';
 import Game from './Game';
 import Credits from './Credits';
-import Navbar from './Navbar';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('home');
@@ -38,7 +37,6 @@ export default function App() {
 
   return (
     <div>
-      <Navbar navigate={navigate} currentView={currentView} />
       {renderCurrentView()}
     </div>
   );

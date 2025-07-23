@@ -2,6 +2,7 @@
 
 import CheckoutForm from "./stripeCheckout";
 import { useAuth } from "../contexts/AuthContext";
+import Navbar from "./Navbar";
 
 export default function Home({ navigate }) {
   const { user, loading } = useAuth();
@@ -12,6 +13,7 @@ export default function Home({ navigate }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-950 to-black relative overflow-x-hidden">
+      <Navbar navigate={navigate} currentView="home" />
       {/* Spooky vignette overlay */}
       <div className="pointer-events-none absolute inset-0 z-10" style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.85) 100%)', mixBlendMode: 'multiply'}} />
       {/* Spooky mist overlay */}
