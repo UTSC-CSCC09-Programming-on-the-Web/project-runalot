@@ -24,7 +24,6 @@ export default function WaitingRoom({ navigate }) {
   const [playersInRoom, setPlayersInRoom] = useState([]);
   const [isHost, setIsHost] = useState(false);
   const [socket, setSocket] = useState(null);
-  const [clientId, setClientId] = useState('');
   const [inputRoomId, setInputRoomId] = useState('');
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -36,31 +35,25 @@ export default function WaitingRoom({ navigate }) {
   const [order, setOrder] = useState(1);
 
 
-  // Generate client ID from user info
-  useEffect(() => {
-    if (user) {
-      const id = user.id || user.login || user.email || `user_${Date.now()}`;
-      setClientId(id);
-    }
-  }, [user]);
-
-  // Initialize socket when we have roomId and clientId
+  // Initialize socket when we have roomId
+  // Authentication is now handled via session cookies, no need for clientId
   const socketConnection = useSocket(
-    roomId && clientId ? process.env.NEXT_PUBLIC_BACKEND_URL : null,
-    roomId && clientId ? { roomId, clientId } : null
+    roomId ? process.env.NEXT_PUBLIC_BACKEND_URL : null,
+    roomId ? { roomId } : null
   );
 
   console.log('a', socketConnection);
 
   useEffect(() => {
-    if (socketConnection && roomId && clientId) {
+    if (socketConnection && roomId) {
       setSocket(socketConnection);
       console.log('[WaitingRoom] Socket connection:', socketConnection, "socket:", socket);
 
       // Listen for room updates
       socketConnection.on('roomUpdate', (data) => {
         setPlayersInRoom(data.players || []);
-        setIsHost(data.host === clientId);
+        // Host information will come from the backend based on authenticated user
+        setIsHost(data.isHost === true);
         // Room creation successful if we receive room update while waiting
         if (isWaitingForRoomCreation) {
           setIsWaitingForRoomCreation(false);
@@ -110,12 +103,11 @@ export default function WaitingRoom({ navigate }) {
       // Now emit joinWaitingRoom AFTER socket is set up
       socketConnection.emit('joinWaitingRoom', {
         roomId,
-        clientId,
         playerName: user?.displayName || user?.name || 'Anonymous',
         isCreating: isCreatingRoom
       });
     }
-  }, [socketConnection, roomId, clientId, user, isCreatingRoom]);
+  }, [socketConnection, roomId, user, isCreatingRoom]);
 
   const createRoom = async () => {
     const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/game/create-room`, {
@@ -141,7 +133,7 @@ export default function WaitingRoom({ navigate }) {
 
   const joinRoom = () => {
     const trimmedRoomId = inputRoomId.trim().toUpperCase();
-    if (trimmedRoomId && clientId) {
+    if (trimmedRoomId) {
       setRoomId(trimmedRoomId);
       setIsCreatingRoom(false);
       setErrorMessage(''); // Clear any previous errors
@@ -157,7 +149,7 @@ export default function WaitingRoom({ navigate }) {
 
   const leaveRoom = () => {
     if (socket) {
-      socket.emit('leaveWaitingRoom', { roomId, clientId });
+      socket.emit('leaveWaitingRoom', { roomId });
     }
     setGameState('waiting');
     setRoomId('');
@@ -244,7 +236,6 @@ export default function WaitingRoom({ navigate }) {
             {(socket && gameStarted) ? (
               <PhaserGameNoSSR
                 socketIo={socket}
-                clientId={clientId}
                 roomId={roomId}
                 isTagger={tagger}
                 order={order}
@@ -373,7 +364,7 @@ export default function WaitingRoom({ navigate }) {
                         {player.name?.charAt(0) || 'P'}
                       </div>
                       <span className="font-medium text-gray-100">{player.name || 'Anonymous'}</span>
-                      {player.id === clientId && (
+                      {player.isCurrentUser && (
                         <span className="ml-2 text-sm text-indigo-300 font-medium">(You)</span>
                       )}
                     </div>
