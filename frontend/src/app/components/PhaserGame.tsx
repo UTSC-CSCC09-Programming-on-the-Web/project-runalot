@@ -6,7 +6,6 @@ import Peer from 'peerjs';
 
 interface PhaserGameProps {
     socketIo: any;
-    clientId: string;
     roomId: string;
     initialRoleMessage?: string | null;
     isTagger: boolean;
@@ -83,7 +82,6 @@ class MainScene extends Phaser.Scene {
     private mapMatrix?: number[][];
     private socket?: any;
     private pressedKeys: Set<string>;
-    private localClientId?: string;
     private lastServerUpdate: any = null;
 
     constructor() {
@@ -94,12 +92,8 @@ class MainScene extends Phaser.Scene {
 
     init() {
         this.socket = this.game.registry.get('socket');
-        this.localClientId = this.game.registry.get('clientId');
         this.game.registry.events.on('changedata-socket', (_parent: any, value: any) => {
             this.socket = value;
-        });
-        this.game.registry.events.on('changedata-clientId', (_parent: any, value: string) => {
-            this.localClientId = value;
         });
         this.game.registry.events.on('changedata-serverGameState', (_parent: any, value: any) => {
             this.lastServerUpdate = value;
@@ -178,6 +172,7 @@ class MainScene extends Phaser.Scene {
         player.setDisplaySize(32, 32);
         player.body.setSize(32, 32);
         player.body.setOffset(8, 8);
+        player.setData('isLocalPlayer', true); // Mark this as the local player
         this.cameras.main.startFollow(player);
         this.player = player;
 
@@ -299,17 +294,40 @@ class MainScene extends Phaser.Scene {
             return;
         }
 
-        if (!this.localClientId) {
-            return;
-        }
-
         const serverPlayers = gameState.players;
         const allServerPlayerIds = Object.keys(serverPlayers);
+        
+        // Get local player info from game registry
+        const localIsTagger = this.game.registry.get('isTagger');
+        const localOrder = this.game.registry.get('order');
+        const playerRoles = this.game.registry.get('playerRoles') || {};
 
-        if (this.player && serverPlayers[this.localClientId]) {
-            const playerData = serverPlayers[this.localClientId];
+        // Find the local player by matching their role and order
+        let localPlayerId: string | null = null;
+        for (const clientId of allServerPlayerIds) {
+            const meta = playerRoles[clientId];
+            if (meta && meta.tagger === localIsTagger && meta.order === localOrder) {
+                localPlayerId = clientId;
+                break;
+            }
+        }
 
-            const positionChanged = Math.abs(this.player.x - playerData.x) > 0.1 || Math.abs(this.player.y - playerData.y) > 0.1; // Lowered threshold for logging
+        // Fallback: if we can't find by role matching, use the first player with matching tagger status
+        if (!localPlayerId) {
+            for (const clientId of allServerPlayerIds) {
+                const playerData = serverPlayers[clientId];
+                if (playerData.tagger === localIsTagger) {
+                    localPlayerId = clientId;
+                    break;
+                }
+            }
+        }
+
+        // Update local player
+        if (this.player && localPlayerId && serverPlayers[localPlayerId]) {
+            const playerData = serverPlayers[localPlayerId];
+
+            const positionChanged = Math.abs(this.player.x - playerData.x) > 0.1 || Math.abs(this.player.y - playerData.y) > 0.1;
 
             if (positionChanged) {
                 this.tweens.add({
@@ -320,7 +338,6 @@ class MainScene extends Phaser.Scene {
                     ease: 'Linear'
                 });
             } else {
-                // Snap to position if difference is small, or if not tweening
                 this.player.x = playerData.x;
                 this.player.y = playerData.y;
             }
@@ -331,24 +348,20 @@ class MainScene extends Phaser.Scene {
             else if (playerData.vx > 0) this.player.anims.play(`right_${localAnimKey}`, true);
             else if (playerData.vy < 0) this.player.anims.play(`up_${localAnimKey}`, true);
             else if (playerData.vy > 0) this.player.anims.play(`down_${localAnimKey}`, true);
-            else this.player.anims.stop(); // Idle if no velocity
+            else this.player.anims.stop();
         }
 
         // Update or create other players
-        const playerRoles = this.game.registry.get('playerRoles') || {};
         allServerPlayerIds.forEach(clientId => {
-            if (clientId === this.localClientId) return; // Already handled
+            if (clientId === localPlayerId) return; // Skip local player
 
             const playerData = serverPlayers[clientId];
             let otherPlayerSprite = this.otherPlayers.get(clientId);
             const meta = playerRoles[clientId];
-            // if (!meta) {
-            //     console.warn(`[PhaserGame] playerRoles missing for clientId: ${clientId}. playerRoles:`, playerRoles);
-            // }
             const safeMeta = meta || { tagger: false, order: 1 };
             const spriteKey = safeMeta.tagger ? `Tagger${safeMeta.order}` : `Runner${safeMeta.order}`;
 
-            if (!otherPlayerSprite) { // Create new sprite for new player
+            if (!otherPlayerSprite) {
                 otherPlayerSprite = this.physics.add.sprite(playerData.x, playerData.y, spriteKey);
                 otherPlayerSprite.setOrigin(0, 0);
                 otherPlayerSprite.setDisplaySize(32, 32);
@@ -359,16 +372,16 @@ class MainScene extends Phaser.Scene {
                 otherPlayerSprite.setTexture(spriteKey);
             }
 
-            // Tween existing other player sprite
+            // Tween other player sprite
             this.tweens.add({
                 targets: otherPlayerSprite,
                 x: playerData.x,
                 y: playerData.y,
-                duration: 100, // Adjust for smoothness
+                duration: 100,
                 ease: 'Linear'
             });
 
-            // Update animation for other players based on server velocity
+            // Update animation for other players
             const otherAnimKey = otherPlayerSprite.texture.key;
             if (playerData.vx < 0) otherPlayerSprite.anims.play(`left_${otherAnimKey}`, true);
             else if (playerData.vx > 0) otherPlayerSprite.anims.play(`right_${otherAnimKey}`, true);
@@ -388,7 +401,7 @@ class MainScene extends Phaser.Scene {
     }
 }
 
-const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, initialRoleMessage, isTagger, order, playerRoles, navigate }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, roomId, initialRoleMessage, isTagger, order, playerRoles, navigate }) => {
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameInstanceRef = useRef<Phaser.Game | null>(null);
     const [gameOver, setGameOver] = useState(false);
@@ -448,7 +461,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, ini
             };
 
             gameInstanceRef.current = new Phaser.Game(config);
-            gameInstanceRef.current.registry.set('clientId', clientId);
             gameInstanceRef.current.registry.set('roomId', roomId);
             gameInstanceRef.current.registry.set('isTagger', isTagger);
             gameInstanceRef.current.registry.set('order', order);
@@ -575,7 +587,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, ini
         peer.on('open', (id) => {
                 console.log('[PhaserGame] PeerJS open event, id:', id);
                 // Notify server of our PeerJS ID
-                socketIo.emit('playerPeerReady', { clientId: clientId, peerId: id, roomId: roomId });
+                socketIo.emit('playerPeerReady', { peerId: id, roomId: roomId });
         });
 
         navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
@@ -604,7 +616,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, ini
             peer.destroy();
             localStreamRef.current?.getTracks().forEach(track => track.stop());
         };
-    }, [socketIo, clientId]);
+    }, [socketIo]);
 
     useEffect(() => {
         // Listen for proximity events from server
