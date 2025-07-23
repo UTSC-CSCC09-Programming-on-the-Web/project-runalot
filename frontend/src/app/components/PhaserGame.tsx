@@ -8,7 +8,6 @@ interface PhaserGameProps {
     socketIo: any;
     clientId: string;
     roomId: string;
-    initialRoleMessage?: string | null;
     isTagger: boolean;
     order: number;
     playerRoles?: { [id: string]: { tagger: boolean, order: number } } | null;
@@ -387,7 +386,7 @@ class MainScene extends Phaser.Scene {
     }
 }
 
-const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, initialRoleMessage, isTagger, order, playerRoles }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isTagger, order, playerRoles }) => {
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameInstanceRef = useRef<Phaser.Game | null>(null);
     const [gameOver, setGameOver] = useState(false);

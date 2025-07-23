@@ -37,8 +37,8 @@ io.use(async (socket, next) => {
 // --- Game Configuration ---
 const PLAYER_SPEED = 180;
 const TAGGER_SPEED = 200;
-const SERVER_TICK_RATE = 1000 / 60; // 60 FPS
-const TILE_SIZE = 32; // pixels
+const SERVER_TICK_RATE = 1000 / 60;
+const TILE_SIZE = 32;
 
 
 const OBSTACLE_MATRIX = [
@@ -169,7 +169,15 @@ io.on('connection', (socket) => {
       });
       return;
     }
-    
+
+    if(!ClientJoined.subscription){
+      socket.emit('roomJoinError', {
+        error: 'No active subscription',
+        message: `You need an active subscription to join a room.`
+      });
+      return;
+    }
+
     // When creating, check if room ID is already in use
     if (isCreating && gameState.waitingRooms[roomId]) {
       console.log(`Room ${roomId} already exists for player ${clientId}`);
@@ -270,6 +278,13 @@ io.on('connection', (socket) => {
       
       // Move players from waiting room to game room
       waitingRoom.players.forEach(player => {
+        const playerUser = User.findOne({
+          where: { userId: String(player.id) }
+        });
+        let playerName;
+        if( playerUser ) {
+          playerName = playerUser.username || playerUser.email || 'Guest';
+        }
         gameState.rooms[roomId].players[player.id] = {
           x: 96,
           y: 128,
@@ -277,6 +292,7 @@ io.on('connection', (socket) => {
           vy: 0,
           activeKeys: new Set(),
           tagger: false,
+          playerName: playerName,
           socketId: player.socketId // Carry over socketId
         };
       });
@@ -710,7 +726,7 @@ function gameLoop() {
           const playerSocket = io.sockets.sockets.get(otherPlayer.socketId);
           if (playerSocket) {
             console.log(`Player ${otherId} was tagged by ${taggerId} in room ${roomId}`);
-            playerSocket.emit('gameOver', { message: 'You were tagged! Game over.' });
+            playerSocket.emit('gameOver', { message: 'You were caught and eaten by the ghosts!' });
           }
 
           delete room.players[otherId];
