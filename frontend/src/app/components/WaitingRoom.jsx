@@ -50,10 +50,13 @@ export default function WaitingRoom({ navigate }) {
     roomId && clientId ? { roomId, clientId } : null
   );
 
+  console.log('a', socketConnection);
+
   useEffect(() => {
     if (socketConnection && roomId && clientId) {
       setSocket(socketConnection);
-      
+      console.log('[WaitingRoom] Socket connection:', socketConnection, "socket:", socket);
+
       // Listen for room updates
       socketConnection.on('roomUpdate', (data) => {
         setPlayersInRoom(data.players || []);
@@ -126,16 +129,15 @@ export default function WaitingRoom({ navigate }) {
       setPlayersInRoom([]);
       setIsHost(false);
       setSocket(null);
-    } else{
+    } else {
       const data = await response.json();
-      setRoomId(data.roomId);
       setIsHost(true);
-      setIsCreatingRoom(true);
       setIsWaitingForRoomCreation(true);
       setErrorMessage('');
+      setRoomId(data.roomId);
+      setIsCreatingRoom(true);
     }
   };
-
 
   const joinRoom = () => {
     const trimmedRoomId = inputRoomId.trim().toUpperCase();
