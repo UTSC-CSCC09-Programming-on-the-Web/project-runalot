@@ -224,6 +224,8 @@ export default function WaitingRoom() {
   const leaveRoom = () => {
     if (socketConnection) {
       socketConnection.emit('leaveWaitingRoom', { roomId, clientId });
+      socketConnection.disconnect();
+      setSocketConnection(null);
     }
     setGameState('waiting');
     setRoomId('');
@@ -236,7 +238,9 @@ export default function WaitingRoom() {
   };
 
   const goHome = () => {
-    window.location.href = '/';
+    Router.push('/');
+    socketConnection.disconnect();
+    setSocketConnection(null);
   };
 
   if (loading) {
