@@ -7,6 +7,7 @@ import Peer from 'peerjs';
 interface PhaserGameProps {
     socketIo: any;
     roomId: string;
+    clientId?: string;
     initialRoleMessage?: string | null;
     isTagger: boolean;
     order: number;
@@ -16,6 +17,8 @@ interface PhaserGameProps {
 
 
 class BootScene extends Phaser.Scene {
+    private navigate?: (view: string) => void;
+
     constructor() {
         super('BootScene');
     }
@@ -42,6 +45,9 @@ class BootScene extends Phaser.Scene {
     }
 
     create() {
+        // Get navigate function from registry
+        this.navigate = this.game.registry.get('navigate');
+        
         console.log('BootScene create, starting MainScene');
         this.scene.start('MainScene');
     }
@@ -81,6 +87,7 @@ class MainScene extends Phaser.Scene {
     private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     private mapMatrix?: number[][];
     private socket?: any;
+    private navigate?: (view: string) => void;
     private pressedKeys: Set<string>;
     private lastServerUpdate: any = null;
 
@@ -92,8 +99,12 @@ class MainScene extends Phaser.Scene {
 
     init() {
         this.socket = this.game.registry.get('socket');
+        this.navigate = this.game.registry.get('navigate');
         this.game.registry.events.on('changedata-socket', (_parent: any, value: any) => {
             this.socket = value;
+        });
+        this.game.registry.events.on('changedata-navigate', (_parent: any, value: any) => {
+            this.navigate = value;
         });
         this.game.registry.events.on('changedata-serverGameState', (_parent: any, value: any) => {
             this.lastServerUpdate = value;
@@ -236,11 +247,11 @@ class MainScene extends Phaser.Scene {
     }
 
     private sendKeySocketMessage(key: string, type: 'keyPress' | 'keyRelease') {
-
         const socket = this.game.registry.get('socket');
+        const roomId = this.game.registry.get('roomId');
 
         if (socket && socket.connected) {
-            socket.emit(type, { key, timestamp: Date.now() });
+            socket.emit(type, { key, timestamp: Date.now(), roomId });
         } else {
             console.warn(`[MainScene] Socket not connected or not in registry. Cannot send key event.`);
         }
@@ -401,7 +412,7 @@ class MainScene extends Phaser.Scene {
     }
 }
 
-const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, roomId, initialRoleMessage, isTagger, order, playerRoles, navigate }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, roomId, clientId, initialRoleMessage, isTagger, order, playerRoles, navigate }) => {
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameInstanceRef = useRef<Phaser.Game | null>(null);
     const [gameOver, setGameOver] = useState(false);
@@ -425,8 +436,9 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, roomId, initialRoleMe
             if (playerRoles) {
                 gameInstanceRef.current.registry.set('playerRoles', playerRoles);
             }
+            gameInstanceRef.current.registry.set('navigate', navigate);
         }
-    }, [isTagger, order, playerRoles]);
+    }, [isTagger, order, playerRoles, navigate]);
 
     // PeerJS voice chat refs
     const peerRef = useRef<Peer | null>(null);
@@ -465,6 +477,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, roomId, initialRoleMe
             gameInstanceRef.current.registry.set('isTagger', isTagger);
             gameInstanceRef.current.registry.set('order', order);
             gameInstanceRef.current.registry.set('playerRoles', playerRoles);
+            gameInstanceRef.current.registry.set('navigate', navigate);
             console.log('[PhaserGame] Game instance created.');
         }
 
@@ -682,12 +695,20 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, roomId, initialRoleMe
         setIsWinner(false);
         socketIo.disconnect();
         // Reconnect to a new game or return to waiting room
-        navigate('play');
+        if (navigate && typeof navigate === 'function') {
+            navigate('play');
+        } else {
+            console.error('[PhaserGame] Navigate function is not available or not a function');
+        }
     };
 
     const handleReturnToHome = () => {
         socketIo.disconnect();
-        navigate('home');
+        if (navigate && typeof navigate === 'function') {
+            navigate('home');
+        } else {
+            console.error('[PhaserGame] Navigate function is not available or not a function');
+        }
     };
 
 

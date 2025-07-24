@@ -101,14 +101,15 @@ export default function WaitingRoom({ navigate }) {
     }
   }, [user]);
 
-  useEffect(() => {
-    if(clientId && roomId){
-      setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
-        withCredentials: true,
-        query: { roomId, clientId }
-      }));
-    }
-  }, [clientId, roomId]);
+  // useEffect(() => {
+  //   if(clientId && roomId) {
+  //     console.log('effect')
+  //     setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
+  //       withCredentials: true,
+  //       query: { roomId, clientId }
+  //     }));
+  //   }
+  // }, [clientId, roomId]);
 
   useEffect(() => {
     console.log('[WaitingRoom] useEffect - socketConnection:', socketConnection);
@@ -193,10 +194,17 @@ export default function WaitingRoom({ navigate }) {
       setIsCreatingRoom(true);
       setIsWaitingForRoomCreation(true);
       setErrorMessage('');
-      setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
-        withCredentials: true,
-        query: { roomId: data.roomId, clientId }
-      }));
+      if (!socketConnection) {
+        console.log('create')
+        setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
+          withCredentials: true,
+          query: { roomId: data.roomId, clientId }
+        }));
+        setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
+          withCredentials: true,
+          query: { roomId: data.roomId, clientId }
+        }));
+      }
     }
   };
 
@@ -208,10 +216,17 @@ export default function WaitingRoom({ navigate }) {
       setIsCreatingRoom(false);
       setErrorMessage(''); // Clear any previous errors
       setGameState('ready');
-      setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
-        withCredentials: true,
-        query: { roomId: trimmedRoomId, clientId }
-      }));
+      if (!socketConnection) {
+        console.log('join')
+        setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
+          withCredentials: true,
+          query: { roomId: trimmedRoomId, clientId }
+        }));
+        setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
+          withCredentials: true,
+          query: { roomId: trimmedRoomId, clientId }
+        }));
+      }
     }
   };
 
@@ -292,6 +307,7 @@ export default function WaitingRoom({ navigate }) {
                 order={order}
                 playerRoles={playerRoles}
                 initialRoleMessage={initialRoleRef.current}
+                navigate={navigate}
               />
             ) : (
               <SpookyLoadingSpinner text="Connecting to game server..." />

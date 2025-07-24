@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { where } from 'sequelize';
 import {User} from '../models/User.js';
 import { requireAuth } from './auth-router.js';
+import { isAuthenticated } from '../middleware/socketAuthentication.js';
 import Peer from 'peerjs';
 
 
@@ -19,14 +20,25 @@ const tagRouter = Router();
 tagRouter.use(bodyParser.urlencoded({ extended: false }));
 tagRouter.use(bodyParser.json());
 
-// Socket.IO now uses Passport authentication from app.js
-// No need for custom authentication middleware here
+io.use(async (socket, next) => {
+  try {
+    const isAuth = await isAuthenticated(socket.request);
+    if (isAuth) {
+      next();
+    } else {
+      next(new Error("unauthenticated"));
+    }
+  } catch (error) {
+    console.error('Socket authentication error:', error);
+    next(new Error("authentication_error"));
+  }
+});
 
 // --- Game Configuration ---
 const PLAYER_SPEED = 180;
 const TAGGER_SPEED = 200;
-const SERVER_TICK_RATE = 1000 / 60; // 60 FPS
-const TILE_SIZE = 32; // pixels
+const SERVER_TICK_RATE = 1000 / 60;
+const TILE_SIZE = 32;
 
 
 const OBSTACLE_MATRIX = [
@@ -86,23 +98,10 @@ tagRouter.get('/create-room', requireAuth, (req, res) => {
 const broadcastWaitingRoomUpdate = (roomId) => {
   const waitingRoom = gameState.waitingRooms[roomId];
   if (waitingRoom) {
-    // Send individual updates to each player with their host status and mark current user
-    waitingRoom.players.forEach(player => {
-      const playerSocket = io.sockets.sockets.get(player.socketId);
-      if (playerSocket) {
-        // Mark current user and host status for each player
-        const playersWithCurrentUser = waitingRoom.players.map(p => ({
-          ...p,
-          isCurrentUser: p.id === player.id
-        }));
-        
-        playerSocket.emit('roomUpdate', {
-          players: playersWithCurrentUser,
-          host: waitingRoom.host,
-          isHost: player.id === waitingRoom.host,
-          roomId: roomId
-        });
-      }
+    io.to(`waiting_${roomId}`).emit('roomUpdate', {
+      players: waitingRoom.players,
+      host: waitingRoom.host,
+      roomId: roomId
     });
   }
 };
@@ -115,24 +114,20 @@ const broadcastGameState = () => {
 };
 
 io.on('connection', (socket) => {
-  
-  // Get user from Passport session
-  const user = socket.request.user;
-  
-  if (!user) {
-    console.log('Connection attempt with no authenticated user. Disconnecting.');
+
+  const { clientId, roomId } = socket.handshake.query;
+
+  if (!clientId || !roomId) {
+    console.log(`Connection attempt with missing clientId ${clientId} or roomId ${roomId}.`);
     socket.disconnect();
     return;
   }
 
-  // Use user ID from Passport session as clientId
-  const clientId = user.id || user.login || user.email || `user_${Date.now()}`;
-  
-  console.log(`Authenticated user ${clientId} connected`);
+  console.log(`Client ${clientId} connected to room ${roomId}`);
   
   // Handle waiting room events
   socket.on('joinWaitingRoom', async (data) => {
-    const { roomId, playerName, isCreating } = data;
+    const { roomId, clientId, playerName, isCreating } = data;
     console.log(`Player ${clientId} (${playerName}) ${isCreating ? 'creating' : 'joining'} waiting room ${roomId}`);
     
     // Check if room exists when trying to join (not create)
@@ -174,7 +169,15 @@ io.on('connection', (socket) => {
       });
       return;
     }
-    
+
+    if(!ClientJoined.subscription){
+      socket.emit('roomJoinError', {
+        error: 'No active subscription',
+        message: `You need an active subscription to join a room.`
+      });
+      return;
+    }
+
     // When creating, check if room ID is already in use
     if (isCreating && gameState.waitingRooms[roomId]) {
       console.log(`Room ${roomId} already exists for player ${clientId}`);
@@ -221,7 +224,7 @@ io.on('connection', (socket) => {
   });
   
   socket.on('leaveWaitingRoom', async (data) => {
-    const { roomId } = data;
+    const { roomId, clientId } = data;
     console.log(`Player ${clientId} leaving waiting room ${roomId}`);
     
     const waitingRoom = gameState.waitingRooms[roomId];
@@ -311,76 +314,6 @@ io.on('connection', (socket) => {
       // Start broadcasting game state
       broadcastGameState();
 
-      // Assign roles after moving players to game room
-      const room = gameState.rooms[roomId];
-      if (room) {
-        let playerIds = Object.keys(room.players);
-        if (playerIds.length > 0) {
-          // Randomize player order
-          playerIds = playerIds.sort(() => Math.random() - 0.5);
-          const taggerCount = Math.min(2, Math.floor(playerIds.length/2));
-          const taggerIds = playerIds.slice(0, taggerCount);
-          const runnerIds = playerIds.slice(taggerCount);
-
-          const corners = [
-            { x: 96, y: 96 },
-            { x: 96, y: 32 * 31 - 96 },
-            { x: 32 * 31 - 128, y: 96 },
-            { x: 32 * 31 - 96, y: 32 * 31 - 96 }
-          ];
-          const center = { x: Math.floor((30 * 32)/2), y: Math.floor((30 * 32)/2) };
-
-          if (taggerIds.length === 2) {
-            room.players[taggerIds[0]].tagger = true;
-            room.players[taggerIds[0]].x = center.x - 80;
-            room.players[taggerIds[0]].y = center.y;
-            room.players[taggerIds[1]].tagger = true;
-            room.players[taggerIds[1]].x = center.x + 80;
-            room.players[taggerIds[1]].y = center.y;
-          } else {
-            taggerIds.forEach((id) => {
-              room.players[id].tagger = true;
-              room.players[id].x = center.x + 32;
-              room.players[id].y = center.y;
-            });
-          }
-
-          // Assign runners to corners (never more than 4)
-          runnerIds.forEach((id, idx) => {
-            room.players[id].tagger = false;
-            const pos = corners[idx];
-            room.players[id].x = pos.x;
-            room.players[id].y = pos.y;
-          });
-
-          // Build a playerRoles object: { [id]: { tagger: bool, order: number } }
-          const playerRoles = {};
-          for (const id of playerIds) {
-            const isTagger = room.players[id].tagger;
-            let order;
-            if (isTagger) {
-              order = taggerIds.indexOf(id) + 1;
-            } else {
-              order = runnerIds.indexOf(id) + 1;
-            }
-            playerRoles[id] = { tagger: isTagger, order };
-          }
-
-          // Notify all players in the room of their own role and all roles
-          for (const id of playerIds) {
-            const player = room.players[id];
-            const playerSocket = io.sockets.sockets.get(player.socketId);
-            if (playerSocket) {
-              playerSocket.emit('gameStarted', {
-                tagger: playerRoles[id].tagger,
-                order: playerRoles[id].order,
-                playerRoles: playerRoles // send all roles for all players
-              });
-            }
-          }
-        }
-      }
-
       ////////////////// GAME TIMER /////////////////////////////////
       if (gameState.timers[roomId]) {
         clearTimeout(gameState.timers[roomId]);
@@ -409,9 +342,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Socket event handlers that require room context
-  socket.on('playerPeerReady', (data) => {
-    const { peerId, roomId } = data;
+socket.on('playerPeerReady', (data) => {
+    const { clientId, peerId, roomId} = data;
     if (gameState.rooms[roomId] && gameState.rooms[roomId].players[clientId]) {
       gameState.rooms[roomId].players[clientId].peerId = peerId;
       // Notify other players of the new peer
@@ -419,8 +351,105 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.join(roomId); // Client joins the specific room
+
+  if (!gameState.rooms[roomId]) {
+    gameState.rooms[roomId] = {
+      players: {},
+      started: false
+    };
+  }
+  gameState.rooms[roomId].players[clientId] = {
+    x: 96,
+    y: 128,
+    vx: 0,
+    vy: 0,
+    activeKeys: new Set(),
+    tagger: false,
+    socketId: socket.id
+  };
+
+  socket.emit('welcome', { clientId, message: 'Server working' });
+  broadcastGameState();
+
+  socket.on('startGame', () => {
+    const room = gameState.rooms[roomId];
+    if (!room || room.started) {
+      return;
+    }
+
+    console.log(`Client ${clientId} requested to start the game in room ${roomId}`);
+    room.started = true; // Mark the game as started
+
+    let playerIds = Object.keys(room.players);
+    if (playerIds.length > 0) {
+      // Randomize player order
+      playerIds = playerIds.sort(() => Math.random() - 0.5);
+      const taggerCount = Math.min(2, Math.floor(playerIds.length/2));
+      const taggerIds = playerIds.slice(0, taggerCount);
+      const runnerIds = playerIds.slice(taggerCount);
+
+      const corners = [
+        { x: 96, y: 96 },
+        { x: 96, y: 32 * 31 - 96 },
+        { x: 32 * 31 - 128, y: 96 },
+        { x: 32 * 31 - 96, y: 32 * 31 - 96 }
+      ];
+      const center = { x: Math.floor((30 * 32)/2), y: Math.floor((30 * 32)/2) };
+
+
+      if (taggerIds.length === 2) {
+        room.players[taggerIds[0]].tagger = true;
+        room.players[taggerIds[0]].x = center.x - 80;
+        room.players[taggerIds[0]].y = center.y;
+        room.players[taggerIds[1]].tagger = true;
+        room.players[taggerIds[1]].x = center.x + 80;
+        room.players[taggerIds[1]].y = center.y;
+      } else {
+        taggerIds.forEach((id) => {
+          room.players[id].tagger = true;
+          room.players[id].x = center.x + 32;
+          room.players[id].y = center.y;
+        });
+      }
+
+      // Assign runners to corners (never more than 4)
+      runnerIds.forEach((id, idx) => {
+        room.players[id].tagger = false;
+        const pos = corners[idx];
+        room.players[id].x = pos.x;
+        room.players[id].y = pos.y;
+      });
+
+      // Build a playerRoles object: { [id]: { tagger: bool, order: number } }
+      const playerRoles = {};
+      for (const id of playerIds) {
+        const isTagger = room.players[id].tagger;
+        let order;
+        if (isTagger) {
+          order = taggerIds.indexOf(id) + 1;
+        } else {
+          order = runnerIds.indexOf(id) + 1;
+        }
+        playerRoles[id] = { tagger: isTagger, order };
+      }
+
+      // Notify all players in the room of their own role and all roles
+      for (const id of playerIds) {
+        const player = room.players[id];
+        const playerSocket = io.sockets.sockets.get(player.socketId);
+        if (playerSocket) {
+          io.to(player.socketId).emit('gameStarted', {
+            tagger: playerRoles[id].tagger,
+            order: playerRoles[id].order,
+            playerRoles: playerRoles // send all roles for all players
+          });
+        }
+      }
+    }
+  });
+
   socket.on('keyPress', (payload) => {
-    const { roomId } = payload;
     const room = gameState.rooms[roomId];
     if (!room) return;
     const player = room.players[clientId];
@@ -429,7 +458,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('keyRelease', (payload) => {
-    const { roomId } = payload;
     const room = gameState.rooms[roomId];
     if (!room) return;
     const player = room.players[clientId];
@@ -438,12 +466,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('chat', (payload) => {
-    const { roomId } = payload;
     io.to(roomId).emit('chat', { senderId: clientId, payload });
   });
 
   socket.on('disconnect', async () => {
-    console.log(`Client ${clientId} disconnected`);
+    console.log(`Client ${clientId} disconnected from room ${roomId}`);
 
     const deletePlayer = await User.findOne({
       where: { userId: String(clientId) }
@@ -454,49 +481,38 @@ io.on('connection', (socket) => {
       await deletePlayer.save();
     }
 
-    // Handle waiting room disconnection - search through all waiting rooms
-    for (const roomId in gameState.waitingRooms) {
-      const waitingRoom = gameState.waitingRooms[roomId];
-      if (waitingRoom && waitingRoom.players.some(p => p.id === clientId)) {
-        // Remove player from waiting room
-        waitingRoom.players = waitingRoom.players.filter(p => p.id !== clientId);
-        
-        // If host left, assign new host
-        if (waitingRoom.host === clientId && waitingRoom.players.length > 0) {
-          waitingRoom.host = waitingRoom.players[0].id;
-          waitingRoom.players[0].isHost = true;
-        }
-        
-        // If room is empty, delete it
-        if (waitingRoom.players.length === 0) {
-          delete gameState.waitingRooms[roomId];
-        } else {
-          broadcastWaitingRoomUpdate(roomId);
-        }
-        
-        socket.to(`waiting_${roomId}`).emit('playerLeft', { playerId: clientId });
-        break;
+    // Handle waiting room disconnection
+    const waitingRoom = gameState.waitingRooms[roomId];
+    if (waitingRoom) {
+      // Remove player from waiting room
+      waitingRoom.players = waitingRoom.players.filter(p => p.id !== clientId);
+      
+      // If host left, assign new host
+      if (waitingRoom.host === clientId && waitingRoom.players.length > 0) {
+        waitingRoom.host = waitingRoom.players[0].id;
+        waitingRoom.players[0].isHost = true;
       }
+      
+      // If room is empty, delete it
+      if (waitingRoom.players.length === 0) {
+        delete gameState.waitingRooms[roomId];
+      } else {
+        broadcastWaitingRoomUpdate(roomId);
+      }
+      
+      socket.to(`waiting_${roomId}`).emit('playerLeft', { playerId: clientId });
     }
     
-    // Handle game room disconnection - search through all game rooms
-    for (const roomId in gameState.rooms) {
-      const room = gameState.rooms[roomId];
-      if (room && room.players[clientId]) {
-        delete room.players[clientId];
-        if (Object.keys(room.players).length === 0) {
-          // If the room is empty, delete it
-          console.log(`Room ${roomId} is empty, deleting.`);
-          delete gameState.rooms[roomId];
-          if (gameState.timers[roomId]) {
-            clearTimeout(gameState.timers[roomId]);
-            delete gameState.timers[roomId];
-          }
-        } else {
-          // Otherwise, just broadcast the updated state
-          broadcastGameState();
-        }
-        break;
+    const room = gameState.rooms[roomId];
+    if (room && room.players[clientId]) {
+      delete room.players[clientId];
+      if (Object.keys(room.players).length === 0) {
+        // If the room is empty, delete it
+        console.log(`Room ${roomId} is empty, deleting.`);
+        delete gameState.rooms[roomId];
+      } else {
+        // Otherwise, just broadcast the updated state
+        broadcastGameState();
       }
     }
 
@@ -631,7 +647,6 @@ function gameLoop() {
         const player2 = players[player2Id];
 
         if (!player1 || !player2 || !player1.peerId || !player2.peerId) {
-          console.log(`Skipping voice connection check for ${player1Id} and ${player2Id} in room ${roomId} due to missing peerId`);
           continue;
         }
 
@@ -710,7 +725,7 @@ function gameLoop() {
           const playerSocket = io.sockets.sockets.get(otherPlayer.socketId);
           if (playerSocket) {
             console.log(`Player ${otherId} was tagged by ${taggerId} in room ${roomId}`);
-            playerSocket.emit('gameOver', { message: 'You were tagged! Game over.' });
+            playerSocket.emit('gameOver', { message: 'You were caught and eaten by the ghosts!' });
           }
 
           delete room.players[otherId];
