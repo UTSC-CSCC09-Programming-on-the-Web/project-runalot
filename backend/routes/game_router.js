@@ -118,7 +118,7 @@ io.on('connection', (socket) => {
   const { clientId, roomId } = socket.handshake.query;
 
   if (!clientId || !roomId) {
-    console.log('Connection attempt with missing clientId or roomId. Disconnecting.');
+    console.log(`Connection attempt with missing clientId ${clientId} or roomId ${roomId}.`);
     socket.disconnect();
     return;
   }

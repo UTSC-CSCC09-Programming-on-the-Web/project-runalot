@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as Phaser from 'phaser';
 import {Socket} from 'socket.io-client';
 import Peer from 'peerjs';
-
+import { useRouter } from 'next/navigation';
 
 interface PhaserGameProps {
     socketIo: any;
@@ -394,6 +394,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
     const [isWinner, setIsWinner] = useState(false);
     const [roleMessage, setRoleMessage] = useState<string>("");
     const initialRoleShown = useRef(false);
+    const router = useRouter();
 
     useEffect(() => {
         if (isTagger !== undefined && !initialRoleShown.current) {
@@ -666,13 +667,14 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
         setGameOver(false);
         setGameOverMessage('');
         setIsWinner(false);
+        socketIo.disconnect();
         // Reconnect to a new game or return to waiting room
-        window.location.href = '/play'; // Redirect to dashboard to start a new game
+        router.push('/play'); // Redirect to dashboard to start a new game
     };
 
     const handleReturnToDashboard = () => {
         socketIo.disconnect();
-        window.location.href = '/dashboard';
+        router.push('/dashboard');
     };
 
 

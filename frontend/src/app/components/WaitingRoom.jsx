@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import useSocket from '@/hooks/useSocket';
 import dynamic from 'next/dynamic';
 import dotenv from 'dotenv';
+import io from 'socket.io-client';
 
 dotenv.config();
 
@@ -78,7 +79,6 @@ export default function WaitingRoom() {
   const [roomId, setRoomId] = useState('');
   const [playersInRoom, setPlayersInRoom] = useState([]);
   const [isHost, setIsHost] = useState(false);
-  const [socket, setSocket] = useState(null);
   const [clientId, setClientId] = useState('');
   const [inputRoomId, setInputRoomId] = useState('');
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
@@ -89,6 +89,7 @@ export default function WaitingRoom() {
   const initialRoleRef = useRef(null); // Store the initial role for PhaserGame
   const [gameStarted, setGameStarted] = useState(false);
   const [order, setOrder] = useState(1);
+  const [socketConnection, setSocketConnection] = useState(null);
 
 
   // Generate client ID from user info
@@ -96,18 +97,22 @@ export default function WaitingRoom() {
     if (user) {
       const id = user.id || user.login || user.email || `user_${Date.now()}`;
       setClientId(id);
+      console.log("Client ID set:", id);
     }
   }, [user]);
 
-  // Initialize socket when we have roomId and clientId
-  const socketConnection = useSocket(
-    roomId && clientId ? process.env.NEXT_PUBLIC_BACKEND_URL : null,
-    roomId && clientId ? { roomId, clientId } : null
-  );
+  useEffect(() => {
+    if(clientId && roomId){
+      setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
+        withCredentials: true,
+        query: { roomId, clientId }
+      }));
+    }
+  }, [clientId, roomId]);
 
   useEffect(() => {
+    console.log('[WaitingRoom] useEffect - socketConnection:', socketConnection);
     if (socketConnection && roomId && clientId) {
-      setSocket(socketConnection);
       
       // Listen for room updates
       socketConnection.on('roomUpdate', (data) => {
@@ -156,7 +161,7 @@ export default function WaitingRoom() {
         setRoomId('');
         setPlayersInRoom([]);
         setIsHost(false);
-        setSocket(null);
+        setSocketConnection(null);
       });
 
       // Now emit joinWaitingRoom AFTER socket is set up
@@ -180,7 +185,7 @@ export default function WaitingRoom() {
       setRoomId('');
       setPlayersInRoom([]);
       setIsHost(false);
-      setSocket(null);
+      setSocketConnection(null);
     } else{
       const data = await response.json();
       setRoomId(data.roomId);
@@ -188,6 +193,10 @@ export default function WaitingRoom() {
       setIsCreatingRoom(true);
       setIsWaitingForRoomCreation(true);
       setErrorMessage('');
+      setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
+        withCredentials: true,
+        query: { roomId: data.roomId, clientId }
+      }));
     }
   };
 
@@ -199,24 +208,28 @@ export default function WaitingRoom() {
       setIsCreatingRoom(false);
       setErrorMessage(''); // Clear any previous errors
       setGameState('ready');
+      setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
+        withCredentials: true,
+        query: { roomId: trimmedRoomId, clientId }
+      }));
     }
   };
 
   const startGame = () => {
-    if (socket && isHost) {
-      socket.emit('startGame', { roomId });
+    if (socketConnection && isHost) {
+      socketConnection.emit('startGame', { roomId });
     }
   };
 
   const leaveRoom = () => {
-    if (socket) {
-      socket.emit('leaveWaitingRoom', { roomId, clientId });
+    if (socketConnection) {
+      socketConnection.emit('leaveWaitingRoom', { roomId, clientId });
     }
     setGameState('waiting');
     setRoomId('');
     setPlayersInRoom([]);
     setIsHost(false);
-    setSocket(null);
+    setSocketConnection(null);
     setIsCreatingRoom(false);
     setIsWaitingForRoomCreation(false);
     setErrorMessage('');
@@ -270,9 +283,9 @@ export default function WaitingRoom() {
             </h1>
           </div>
           <div className="bg-gray-900 rounded-xl shadow-md p-4 mb-4 border border-gray-700">
-            {(socket && gameStarted) ? (
+            {(clientId && roomId && socketConnection && gameStarted) ? (
               <PhaserGameNoSSR
-                socketIo={socket}
+                socketIo={socketConnection}
                 clientId={clientId}
                 roomId={roomId}
                 isTagger={tagger}

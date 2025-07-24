@@ -4,14 +4,16 @@ import CheckoutForm from "./components/stripeCheckout";
 import Navbar from "./components/Navbar";
 import { useAuth } from "./contexts/AuthContext";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 
 export default function Home() {
+  const router = useRouter();
 
   const { user, loading } = useAuth();
 
   const goToGame = () => {
-    window.location.href = "/play";
+    router.push("/play");
   };
 
   return (
