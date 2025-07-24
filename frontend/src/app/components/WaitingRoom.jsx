@@ -5,15 +5,71 @@ import { useAuth } from '../contexts/AuthContext';
 import useSocket from '@/hooks/useSocket';
 import dynamic from 'next/dynamic';
 import dotenv from 'dotenv';
+import io from 'socket.io-client';
 
 dotenv.config();
+
+function SpookyLoadingSpinner({ text = "Loading..." }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-950 to-black relative overflow-hidden">
+      {/* Spooky vignette overlay */}
+      <div className="pointer-events-none absolute inset-0 z-10" style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.85) 100%)', mixBlendMode: 'multiply'}} />
+      {/* Spooky mist overlay */}
+      <div className="pointer-events-none absolute inset-0 z-20 animate-spookyMist" style={{background: 'linear-gradient(120deg, rgba(30,30,40,0.18) 0%, rgba(80,80,100,0.12) 100%)', filter: 'blur(2.5px)'}} />
+      <div className="text-center relative z-30 flex flex-col items-center">
+        <div className="w-16 h-16 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin shadow-lg mb-6" style={{boxShadow: '0 0 32px #a855f7, 0 0 64px #222'}}></div>
+        <p className="text-3xl font-bold text-gray-100 animate-spookyGlow mb-2" style={{fontFamily: 'Creepster, Luckiest Guy, Comic Sans MS, cursive', letterSpacing: 2, textShadow: '0 0 24px #fff, 0 0 48px #a855f7'}}>{text}</p>
+        <span className="block w-20 h-2 bg-indigo-700 rounded-full opacity-70 animate-spookyPulse mx-auto mt-2" />
+      </div>
+      <style jsx global>{`
+        @keyframes spookyMist {
+          0% { opacity: 0.95; filter: blur(2.5px) brightness(1); }
+          50% { opacity: 0.85; filter: blur(3.5px) brightness(1.1); }
+          100% { opacity: 0.95; filter: blur(2.5px) brightness(1); }
+        }
+        .animate-spookyMist { animation: spookyMist 4s ease-in-out infinite; }
+        @keyframes spookyGlow {
+          0%, 100% { text-shadow: 0 0 24px #fff, 0 0 48px #a855f7; }
+          50% { text-shadow: 0 0 48px #fff, 0 0 64px #a855f7; }
+        }
+        .animate-spookyGlow { animation: spookyGlow 2.8s alternate infinite; }
+        @keyframes spookyPulse {
+          0%, 100% { opacity: 0.8; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.12); }
+        }
+        .animate-spookyPulse { animation: spookyPulse 2.2s infinite; }
+      `}</style>
+    </div>
+  );
+}
 
 // Dynamically import the PhaserGame component with SSR turned off
 const PhaserGameNoSSR = dynamic(
   () => import('@/app/components/PhaserGame'),
   {
     ssr: false,
-    loading: () => <p style={{ textAlign: 'center' }}>Loading Game...</p>
+    loading: () => (
+      <div style={{ width: 720, height: 600, maxWidth: 720, maxHeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', background: '#181824', borderRadius: 18 }}>
+        <div style={{ textAlign: 'center', width: '100%' }}>
+          <div style={{
+            width: 64,
+            height: 64,
+            border: '8px solid #e0e0e0',
+            borderTop: '8px solid #6366f1',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 24px auto'
+          }} />
+          <div style={{ color: '#e0e0e0', fontSize: 24, fontWeight: 600 }}>Loading Game...</div>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      </div>
+    )
   }
 );
 
@@ -23,7 +79,7 @@ export default function WaitingRoom({ navigate }) {
   const [roomId, setRoomId] = useState('');
   const [playersInRoom, setPlayersInRoom] = useState([]);
   const [isHost, setIsHost] = useState(false);
-  const [socket, setSocket] = useState(null);
+  const [clientId, setClientId] = useState('');
   const [inputRoomId, setInputRoomId] = useState('');
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -33,27 +89,35 @@ export default function WaitingRoom({ navigate }) {
   const initialRoleRef = useRef(null); // Store the initial role for PhaserGame
   const [gameStarted, setGameStarted] = useState(false);
   const [order, setOrder] = useState(1);
+  const [socketConnection, setSocketConnection] = useState(null);
 
 
-  // Initialize socket when we have roomId
-  // Authentication is now handled via session cookies, no need for clientId
-  const socketConnection = useSocket(
-    roomId ? process.env.NEXT_PUBLIC_BACKEND_URL : null,
-    roomId ? { roomId } : null
-  );
-
-  console.log('a', socketConnection);
+  // Generate client ID from user info
+  useEffect(() => {
+    if (user) {
+      const id = user.id || user.login || user.email || `user_${Date.now()}`;
+      setClientId(id);
+      console.log("Client ID set:", id);
+    }
+  }, [user]);
 
   useEffect(() => {
-    if (socketConnection && roomId) {
-      setSocket(socketConnection);
-      console.log('[WaitingRoom] Socket connection:', socketConnection, "socket:", socket);
+    if(clientId && roomId){
+      setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
+        withCredentials: true,
+        query: { roomId, clientId }
+      }));
+    }
+  }, [clientId, roomId]);
 
+  useEffect(() => {
+    console.log('[WaitingRoom] useEffect - socketConnection:', socketConnection);
+    if (socketConnection && roomId && clientId) {
+      
       // Listen for room updates
       socketConnection.on('roomUpdate', (data) => {
         setPlayersInRoom(data.players || []);
-        // Host information will come from the backend based on authenticated user
-        setIsHost(data.isHost === true);
+        setIsHost(data.host === clientId);
         // Room creation successful if we receive room update while waiting
         if (isWaitingForRoomCreation) {
           setIsWaitingForRoomCreation(false);
@@ -97,17 +161,18 @@ export default function WaitingRoom({ navigate }) {
         setRoomId('');
         setPlayersInRoom([]);
         setIsHost(false);
-        setSocket(null);
+        setSocketConnection(null);
       });
 
       // Now emit joinWaitingRoom AFTER socket is set up
       socketConnection.emit('joinWaitingRoom', {
         roomId,
+        clientId,
         playerName: user?.displayName || user?.name || 'Anonymous',
         isCreating: isCreatingRoom
       });
     }
-  }, [socketConnection, roomId, user, isCreatingRoom]);
+  }, [socketConnection, roomId, clientId, user, isCreatingRoom]);
 
   const createRoom = async () => {
     const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/game/create-room`, {
@@ -120,42 +185,51 @@ export default function WaitingRoom({ navigate }) {
       setRoomId('');
       setPlayersInRoom([]);
       setIsHost(false);
-      setSocket(null);
-    } else {
+      setSocketConnection(null);
+    } else{
       const data = await response.json();
+      setRoomId(data.roomId);
       setIsHost(true);
+      setIsCreatingRoom(true);
       setIsWaitingForRoomCreation(true);
       setErrorMessage('');
-      setRoomId(data.roomId);
-      setIsCreatingRoom(true);
+      setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
+        withCredentials: true,
+        query: { roomId: data.roomId, clientId }
+      }));
     }
   };
 
+
   const joinRoom = () => {
     const trimmedRoomId = inputRoomId.trim().toUpperCase();
-    if (trimmedRoomId) {
+    if (trimmedRoomId && clientId) {
       setRoomId(trimmedRoomId);
       setIsCreatingRoom(false);
       setErrorMessage(''); // Clear any previous errors
       setGameState('ready');
+      setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
+        withCredentials: true,
+        query: { roomId: trimmedRoomId, clientId }
+      }));
     }
   };
 
   const startGame = () => {
-    if (socket && isHost) {
-      socket.emit('startGame', { roomId });
+    if (socketConnection && isHost) {
+      socketConnection.emit('startGame', { roomId });
     }
   };
 
   const leaveRoom = () => {
-    if (socket) {
-      socket.emit('leaveWaitingRoom', { roomId });
+    if (socketConnection) {
+      socketConnection.emit('leaveWaitingRoom', { roomId, clientId });
     }
     setGameState('waiting');
     setRoomId('');
     setPlayersInRoom([]);
     setIsHost(false);
-    setSocket(null);
+    setSocketConnection(null);
     setIsCreatingRoom(false);
     setIsWaitingForRoomCreation(false);
     setErrorMessage('');
@@ -166,31 +240,7 @@ export default function WaitingRoom({ navigate }) {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-950 to-black relative overflow-hidden">
-        {/* Spooky vignette overlay */}
-        <div className="pointer-events-none absolute inset-0 z-10" style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.85) 100%)', mixBlendMode: 'multiply'}} />
-        {/* Spooky mist overlay */}
-        <div className="pointer-events-none absolute inset-0 z-20 animate-spookyMist" style={{background: 'linear-gradient(120deg, rgba(30,30,40,0.18) 0%, rgba(80,80,100,0.12) 100%)', filter: 'blur(2.5px)'}} />
-        <div className="text-center relative z-30">
-          <div className="w-12 h-12 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-6 shadow-lg"></div>
-          <p className="text-2xl font-bold text-gray-100 animate-spookyGlow" style={{fontFamily: 'Creepster, Luckiest Guy, Comic Sans MS, cursive', letterSpacing: 2, textShadow: '0 0 16px #fff, 0 0 32px #a855f7'}}>Loading...</p>
-        </div>
-        <style jsx global>{`
-          @keyframes spookyMist {
-            0% { opacity: 0.95; filter: blur(2.5px) brightness(1); }
-            50% { opacity: 0.85; filter: blur(3.5px) brightness(1.1); }
-            100% { opacity: 0.95; filter: blur(2.5px) brightness(1); }
-          }
-          .animate-spookyMist { animation: spookyMist 4s ease-in-out infinite; }
-          @keyframes spookyGlow {
-            0%, 100% { text-shadow: 0 0 24px #fff, 0 0 48px #a855f7; }
-            50% { text-shadow: 0 0 48px #fff, 0 0 64px #a855f7; }
-          }
-          .animate-spookyGlow { animation: spookyGlow 2.8s alternate infinite; }
-        `}</style>
-      </div>
-    );
+    return <SpookyLoadingSpinner text="Loading..." />;
   }
 
   if (!user) {
@@ -222,7 +272,7 @@ export default function WaitingRoom({ navigate }) {
         {/* Leave Game Button at Top Left */}
         <button
           onClick={leaveRoom}
-          className="absolute font-medium cursor-pointer top-4 left-4 bg-gray-900 border border-red-400 text-red-600 px-4 py-2 rounded-lg shadow transition duration-200 z-50 hover:bg-red-700 hover:text-white animate-spookyPulse"
+          className="absolute font-bold cursor-pointer top-4 left-4 bg-gray-900 border border-red-400 text-red-500 px-4 py-2 rounded-lg shadow transition duration-200 z-50 hover:bg-red-700 hover:text-white animate-spookyPulse"
         >
           Leave Game
         </button>
@@ -233,21 +283,18 @@ export default function WaitingRoom({ navigate }) {
             </h1>
           </div>
           <div className="bg-gray-900 rounded-xl shadow-md p-4 mb-4 border border-gray-700">
-            {(socket && gameStarted) ? (
+            {(clientId && roomId && socketConnection && gameStarted) ? (
               <PhaserGameNoSSR
-                socketIo={socket}
+                socketIo={socketConnection}
+                clientId={clientId}
                 roomId={roomId}
                 isTagger={tagger}
                 order={order}
                 playerRoles={playerRoles}
                 initialRoleMessage={initialRoleRef.current}
-                navigate={navigate}
               />
             ) : (
-              <div className="text-center py-10">
-                <div className="w-12 h-12 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-300 font-medium">Connecting to game server...</p>
-              </div>
+              <SpookyLoadingSpinner text="Connecting to game server..." />
             )}
           </div>
           {/* Countdown Timer Below Game */}
@@ -274,6 +321,7 @@ export default function WaitingRoom({ navigate }) {
       </div>
     );
   }
+// Spooky themed loading spinner component
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-950 to-black py-12 px-4 relative overflow-hidden">
@@ -290,10 +338,10 @@ export default function WaitingRoom({ navigate }) {
         {gameState === 'waiting' && (
           <div className="bg-gray-900 rounded-2xl shadow-md p-8 max-w-md mx-auto border border-gray-700">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-red-900 animate-spookyPulse">Join or Create Room</h2>
+              <h2 className="text-2xl font-bold text-red-600 animate-spookyPulse">Join or Create Room</h2>
               <button
                 onClick={goHome}
-                className="text-gray-400 hover:text-gray-200 text-sm"
+                className="text-gray-300 hover:text-white text-md cursor-pointer"
               >
                 ← Back to Home
               </button>
@@ -320,14 +368,14 @@ export default function WaitingRoom({ navigate }) {
                 <button
                   onClick={joinRoom}
                   disabled={!inputRoomId.trim()}
-                  className="flex-1 bg-indigo-800 text-white py-2 px-4 rounded-lg cursor-pointer hover:bg-indigo-700 disabled:bg-black disabled:cursor-not-allowed transition duration-200 font-semibold"
+                  className="flex-1 bg-gray-800 border border-gray-300 text-white py-2 px-4 rounded-lg cursor-pointer hover:bg-indigo-500 disabled:bg-black disabled:cursor-not-allowed transition duration-200 font-semibold"
                 >
                   Join Room
                 </button>
                 <button
                   onClick={createRoom}
                   disabled={isWaitingForRoomCreation}
-                  className="flex-1 bg-gray-800 text-white py-2 px-4 rounded-lg cursor-pointer hover:bg-indigo-700 disabled:bg-black disabled:cursor-not-allowed transition duration-200 font-semibold"
+                  className="flex-1 bg-gray-800 border border-gray-300 text-white py-2 px-4 rounded-lg cursor-pointer hover:bg-indigo-500 disabled:bg-black disabled:cursor-not-allowed transition duration-200 font-semibold"
                 >
                   {isWaitingForRoomCreation ? 'Creating Room...' : 'Create Room'}
                 </button>
@@ -364,7 +412,7 @@ export default function WaitingRoom({ navigate }) {
                         {player.name?.charAt(0) || 'P'}
                       </div>
                       <span className="font-medium text-gray-100">{player.name || 'Anonymous'}</span>
-                      {player.isCurrentUser && (
+                      {player.id === clientId && (
                         <span className="ml-2 text-sm text-indigo-300 font-medium">(You)</span>
                       )}
                     </div>
@@ -406,7 +454,7 @@ export default function WaitingRoom({ navigate }) {
         }
         .animate-spookyGlow { animation: spookyGlow 2.8s alternate infinite; }
         @keyframes spookyPulse {
-          0%, 100% { opacity: 0.8; transform: scale(1); }
+          0%, 100% { opacity: 0.9; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.04); }
         }
         .animate-spookyPulse { animation: spookyPulse 2.2s infinite; }

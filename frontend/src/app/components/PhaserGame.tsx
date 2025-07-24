@@ -680,6 +680,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, roomId, initialRoleMe
         setGameOver(false);
         setGameOverMessage('');
         setIsWinner(false);
+        socketIo.disconnect();
         // Reconnect to a new game or return to waiting room
         navigate('play');
     };

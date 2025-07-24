@@ -275,6 +275,13 @@ io.on('connection', (socket) => {
       
       // Move players from waiting room to game room
       waitingRoom.players.forEach(player => {
+        const playerUser = User.findOne({
+          where: { userId: String(player.id) }
+        });
+        let playerName;
+        if( playerUser ) {
+          playerName = playerUser.username || playerUser.email || 'Guest';
+        }
         gameState.rooms[roomId].players[player.id] = {
           x: 96,
           y: 128,
@@ -282,6 +289,7 @@ io.on('connection', (socket) => {
           vy: 0,
           activeKeys: new Set(),
           tagger: false,
+          playerName: playerName,
           socketId: player.socketId // Carry over socketId
         };
       });
