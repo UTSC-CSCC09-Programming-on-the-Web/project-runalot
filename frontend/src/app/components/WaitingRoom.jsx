@@ -6,6 +6,7 @@ import useSocket from '@/hooks/useSocket';
 import dynamic from 'next/dynamic';
 import dotenv from 'dotenv';
 import io from 'socket.io-client';
+import { useRouter } from 'next/navigation';
 
 dotenv.config();
 
@@ -90,6 +91,7 @@ export default function WaitingRoom() {
   const [gameStarted, setGameStarted] = useState(false);
   const [order, setOrder] = useState(1);
   const [socketConnection, setSocketConnection] = useState(null);
+  const router = useRouter();
 
 
   // Generate client ID from user info
@@ -238,7 +240,7 @@ export default function WaitingRoom() {
   };
 
   const goHome = () => {
-    Router.push('/');
+    router.push('/');
     socketConnection.disconnect();
     setSocketConnection(null);
   };

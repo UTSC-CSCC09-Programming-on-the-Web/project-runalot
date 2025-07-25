@@ -160,16 +160,6 @@ io.on('connection', (socket) => {
       where: { userId: String(clientId) }
     });
 
-
-    // TODO: Need to have the stripe authentication check here
-    if(!ClientJoined || ClientJoined.inRoom){
-      socket.emit('roomJoinError', { 
-        error: 'Client is already in a room',
-        message: `You are already in a room.`
-      });
-      return;
-    }
-
     if(!ClientJoined.subscription){
       socket.emit('roomJoinError', {
         error: 'No active subscription',
