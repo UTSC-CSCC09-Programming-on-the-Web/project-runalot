@@ -391,7 +391,9 @@ class MainScene extends Phaser.Scene {
     }
 }
 
+
 const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isTagger, order, playerRoles, onPlayAgain, gameOver, setGameOver, winGame, setWinGame }) => {
+
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameInstanceRef = useRef<Phaser.Game | null>(null);
     // const [gameOver, setGameOver] = useState(false);
@@ -674,7 +676,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
 
     const handleReturnToDashboard = () => {
         socketIo.disconnect();
-        navigate('home');
+        window.location.href = '/';
     };
 
 
