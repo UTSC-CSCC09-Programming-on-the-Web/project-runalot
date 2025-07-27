@@ -198,6 +198,7 @@ export default function WaitingRoom() {
       setGameState('waiting');
       setRoomId('');
       setPlayersInRoom([]);
+      setInputRoomId(''); // Clear input field
       setIsHost(false);
       setSocketConnection(null);
     } else{
@@ -222,6 +223,7 @@ export default function WaitingRoom() {
       setIsCreatingRoom(false);
       setErrorMessage(''); // Clear any previous errors
       setGameState('ready');
+      setInputRoomId(''); // Clear input field
       setSocketConnection(io(process.env.NEXT_PUBLIC_BACKEND_URL, {
         withCredentials: true,
         query: { roomId: trimmedRoomId, clientId }

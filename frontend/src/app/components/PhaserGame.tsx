@@ -674,7 +674,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
 
     const handleReturnToDashboard = () => {
         socketIo.disconnect();
-        navigate('dashboard');
+        navigate('home');
     };
 
 
@@ -782,8 +782,8 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
                             <button
                                 onClick={handleReturnToDashboard}
                                 className="px-6 py-3 text-base font-bold bg-gray-600 text-white border-none rounded-lg cursor-pointer transition-all duration-300 shadow-lg hover:bg-gray-700 hover:-translate-y-0.5 hover:shadow-xl"
-                            >
-                                Dashboard
+       >
+                                Home
                             </button>
                         </div>
                     </div>
