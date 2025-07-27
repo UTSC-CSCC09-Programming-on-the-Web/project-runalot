@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as Phaser from 'phaser';
 import {Socket} from 'socket.io-client';
 import Peer from 'peerjs';
-import { useRouter } from 'next/navigation';
+import { useNavigation } from '../contexts/NavigationContext';
 
 interface PhaserGameProps {
     socketIo: any;
@@ -11,6 +11,11 @@ interface PhaserGameProps {
     isTagger: boolean;
     order: number;
     playerRoles?: { [id: string]: { tagger: boolean, order: number } } | null;
+    onPlayAgain: () => void;
+    gameOver: boolean;
+    setGameOver: React.Dispatch<React.SetStateAction<boolean>>;
+    winGame: boolean;
+    setWinGame: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 
@@ -386,15 +391,15 @@ class MainScene extends Phaser.Scene {
     }
 }
 
-const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isTagger, order, playerRoles }) => {
+const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isTagger, order, playerRoles, onPlayAgain, gameOver, setGameOver, winGame, setWinGame }) => {
     const gameContainerRef = useRef<HTMLDivElement>(null);
     const gameInstanceRef = useRef<Phaser.Game | null>(null);
-    const [gameOver, setGameOver] = useState(false);
+    // const [gameOver, setGameOver] = useState(false);
     const [gameOverMessage, setGameOverMessage] = useState('');
     const [isWinner, setIsWinner] = useState(false);
     const [roleMessage, setRoleMessage] = useState<string>("");
     const initialRoleShown = useRef(false);
-    const router = useRouter();
+    const { navigate } = useNavigation();
 
     useEffect(() => {
         if (isTagger !== undefined && !initialRoleShown.current) {
@@ -664,17 +669,12 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
     const viewportHeight = Math.min(gameWorldHeight, 600);
 
     const handlePlayAgain = () => {
-        setGameOver(false);
-        setGameOverMessage('');
-        setIsWinner(false);
-        socketIo.disconnect();
-        // Reconnect to a new game or return to waiting room
-        router.push('/play'); // Redirect to dashboard to start a new game
+        onPlayAgain();
     };
 
     const handleReturnToDashboard = () => {
         socketIo.disconnect();
-        router.push('/dashboard');
+        navigate('dashboard');
     };
 
 
@@ -752,19 +752,22 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
                     <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-gray-800/80 to-black/90 animate-spookyMist pointer-events-none" style={{ filter: 'blur(2px)' }} />
                     {/* Flickering border and glowing text */}
                     <div className={`relative p-10 rounded-3xl border-4 max-w-md shadow-2xl bg-gradient-to-br from-gray-900/90 to-black/90 border-gray-700 animate-spookyBorder pointer-events-auto`}>
-                        <h2 className={`text-5xl font-extrabold mb-4 text-center drop-shadow-[0_0_16px_#444] animate-spookyGlow tracking-widest select-none ${isWinner ? 'text-green-400' : 'text-red-400'}`} style={{ fontFamily: 'Creepster, "Cinzel Decorative", serif' }}>
-                            {isWinner
+                        <h2 className={`text-5xl font-extrabold mb-4 text-center drop-shadow-[0_0_16px_#444] animate-spookyGlow tracking-widest select-none ${winGame ? 'text-green-400' : 'text-red-400'}`} style={{ fontFamily: 'Creepster, "Cinzel Decorative", serif' }}>
+                            {winGame
                                 ? (isTagger
                                     ? '👻 The Tagger Prevails! 👻'
                                     : '🕯️ The Runner Escapes! 🕯️')
                                 : '💀 Game Over 💀'}
                         </h2>
                         <p className="text-lg leading-relaxed mb-8 text-gray-200 text-center">
-                            {isWinner
+                            {winGame
                                 ? (isTagger
                                     ? 'You have haunted every runner. The night is yours!'
                                     : 'You slipped through the shadows and survived the tagger!')
-                                : gameOverMessage}
+                                : (isTagger
+                                    ? 'You are going to have to starve tonight, who knows when your next meal might be'
+                                    : 'You were caught and your limbs were feasted upon by the tagger'
+                                )}
                         </p>
                         <div className="w-full flex justify-center mb-6">
                             <span className="block w-16 h-2 bg-gray-700 rounded-full opacity-60 animate-spookyPulse" />

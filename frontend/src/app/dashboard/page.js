@@ -2,17 +2,17 @@
 
 import { useAuth } from '../contexts/AuthContext';
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigation } from '../contexts/NavigationContext';
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
-  const router = useRouter();
+  const { navigate } = useNavigation();
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/');
+      navigate('home');
     }
-  }, [user, loading, router]);
+  }, [user, loading, navigate]);
 
   if (loading) {
     return (
@@ -30,7 +30,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50 pt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
-          onClick={() => router.push('/')}
+          onClick={() => navigate('home')}
           className="mb-6 flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition duration-300"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -637,7 +637,7 @@ function gameLoop() {
         const player2 = players[player2Id];
 
         if (!player1 || !player2 || !player1.peerId || !player2.peerId) {
-          console.log(`Skipping voice connection check for ${player1Id} and ${player2Id} in room ${roomId} due to missing peerId`);
+          //console.log(`Skipping voice connection check for ${player1Id} and ${player2Id} in room ${roomId} due to missing peerId`);
           continue;
         }
 

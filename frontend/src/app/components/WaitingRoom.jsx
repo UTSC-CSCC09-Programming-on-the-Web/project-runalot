@@ -6,7 +6,7 @@ import useSocket from '@/hooks/useSocket';
 import dynamic from 'next/dynamic';
 import dotenv from 'dotenv';
 import io from 'socket.io-client';
-import { useRouter } from 'next/navigation';
+import { useNavigation } from '../contexts/NavigationContext';
 
 dotenv.config();
 
@@ -91,7 +91,9 @@ export default function WaitingRoom() {
   const [gameStarted, setGameStarted] = useState(false);
   const [order, setOrder] = useState(1);
   const [socketConnection, setSocketConnection] = useState(null);
-  const router = useRouter();
+  const { navigate } = useNavigation();
+  const [gameOver, setGameOver] = useState(false);
+  const [winGame, setWinGame] = useState(false);
 
 
   // Generate client ID from user info
@@ -152,6 +154,16 @@ export default function WaitingRoom() {
 
       socketConnection.on('playerLeft', (data) => {
         console.log(`Player ${data.playerId} left the room`);
+      });
+
+      socketConnection.on('gameOver', (data) => {
+        setGameOver(true);
+        setWinGame(false);
+      });
+
+      socketConnection.on('winGame', (data) => {
+        setGameOver(true);
+        setWinGame(true);
       });
 
       // Listen for room join errors
@@ -227,7 +239,28 @@ export default function WaitingRoom() {
     if (socketConnection) {
       socketConnection.emit('leaveWaitingRoom', { roomId, clientId });
       socketConnection.disconnect();
-      setSocketConnection(null);
+    }
+    setGameOver(false);
+    setWinGame(false);
+    setGameState('waiting');
+    setRoomId('');
+    setPlayersInRoom([]);
+    setIsHost(false);
+    setSocketConnection(null);
+    setIsCreatingRoom(false);
+    setIsWaitingForRoomCreation(false);
+    setErrorMessage('');
+    // Reset all game-related state
+    setGameStarted(false);
+    setTagger(false);
+    setOrder(1);
+    setPlayerRoles(null);
+    initialRoleRef.current = null;
+  };
+
+  const handlePlayAgain = () => {
+    if (socketConnection) {
+      socketConnection.disconnect();
     }
     setGameState('waiting');
     setRoomId('');
@@ -237,12 +270,39 @@ export default function WaitingRoom() {
     setIsCreatingRoom(false);
     setIsWaitingForRoomCreation(false);
     setErrorMessage('');
-  };
+    setGameOver(false);
+    setWinGame(false);
+    // Reset all game-related state
+    setGameStarted(false);
+    setTagger(false);
+    setOrder(1);
+    setPlayerRoles(null);
+    initialRoleRef.current = null;
+    navigate('play');
+  }
 
   const goHome = () => {
-    router.push('/');
-    socketConnection.disconnect();
+    if (socketConnection) {
+      socketConnection.emit('leaveWaitingRoom', { roomId, clientId });
+      socketConnection.disconnect();
+    }
+    setGameState('waiting');
+    setRoomId('');
+    setPlayersInRoom([]);
+    setIsHost(false);
     setSocketConnection(null);
+    setIsCreatingRoom(false);
+    setIsWaitingForRoomCreation(false);
+    setErrorMessage('');
+    setGameOver(false);
+    setWinGame(false);
+    // Reset all game-related state
+    setGameStarted(false);
+    setTagger(false);
+    setOrder(1);
+    setPlayerRoles(null);
+    initialRoleRef.current = null;
+    navigate('home');
   };
 
   if (loading) {
@@ -257,7 +317,7 @@ export default function WaitingRoom() {
           <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-100 mb-4">Authentication Required</h2>
           <p className="text-gray-500 dark:text-gray-300 mb-6">Please log in to join the game.</p>
           <button
-            onClick={() => window.location.href = '/'}
+            onClick={() => navigate('home')}
             className="bg-gray-800 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200"
           >
             Go to Home
@@ -291,6 +351,7 @@ export default function WaitingRoom() {
           <div className="bg-gray-900 rounded-xl shadow-md p-4 mb-4 border border-gray-700">
             {(clientId && roomId && socketConnection && gameStarted) ? (
               <PhaserGameNoSSR
+                key={`${roomId}-${clientId}-${gameStarted}`}
                 socketIo={socketConnection}
                 clientId={clientId}
                 roomId={roomId}
@@ -298,6 +359,12 @@ export default function WaitingRoom() {
                 order={order}
                 playerRoles={playerRoles}
                 initialRoleMessage={initialRoleRef.current}
+                onLeaveRoom={leaveRoom}
+                onPlayAgain={handlePlayAgain}
+                gameOver={gameOver}
+                setGameOver={setGameOver}
+                winGame={winGame}
+                setWinGame={setWinGame}
               />
             ) : (
               <SpookyLoadingSpinner text="Connecting to game server..." />

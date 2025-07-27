@@ -1,10 +1,12 @@
 "use client";
 
 import { useAuth } from "../contexts/AuthContext";
+import { useNavigation } from "../contexts/NavigationContext";
 import { useState } from "react";
 
 export default function Navbar() {
   const { user, loading, login, logout } = useAuth();
+  const { navigate } = useNavigation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
