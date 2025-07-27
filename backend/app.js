@@ -12,7 +12,6 @@ import { Server } from 'socket.io';
 import gameRouter from './routes/game_router.js';
 import session from 'express-session';
 import passport from 'passport';
-import { Strategy as GitHubStrategy } from 'passport-github2';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import {authRouter} from './routes/auth-router.js';
 
@@ -26,15 +25,6 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser((user, done) => {
   done(null, user);
 });
-
-// GitHub Strategy
-passport.use(new GitHubStrategy({
-  clientID: process.env.GITHUB_ID,
-  clientSecret: process.env.GITHUB_SECRET,
-  callbackURL: `${process.env.BACKEND_URL}/auth/github/callback`
-}, (accessToken, refreshToken, profile, done) => {
-  return done(null, profile);
-}));
 
 // Google Strategy
 passport.use(new GoogleStrategy({
@@ -123,24 +113,6 @@ try {
 } catch (error) {
   console.error("Unable to connect to the database:", error);
 }
-
-
-// app.post('/create-checkout-session', async (req, res) => {
-//   const session = await stripe.checkout.sessions.create({
-//     ui_mode: 'embedded',
-//     line_items: [
-//       {
-//         // Provide the exact Price ID (for example, price_1234) of the product you want to sell
-//         price: process.env.STRIPE_PRICE_ID,
-//         quantity: 1,
-//       },
-//     ],
-//     mode: 'subscription',
-//     redirect_on_completion: 'never'
-//   });
-  
-//   res.send({clientSecret: session.client_secret});
-// });
 
 const PORT = process.env.PORT;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
