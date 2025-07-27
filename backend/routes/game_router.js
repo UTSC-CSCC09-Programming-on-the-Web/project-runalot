@@ -37,8 +37,8 @@ io.use(async (socket, next) => {
 // --- Game Configuration ---
 const PLAYER_SPEED = 180;
 const TAGGER_SPEED = 200;
-const SERVER_TICK_RATE = 1000 / 60; // 60 FPS
-const TILE_SIZE = 32; // pixels
+const SERVER_TICK_RATE = 1000 / 60;
+const TILE_SIZE = 32;
 
 
 const OBSTACLE_MATRIX = [
@@ -118,7 +118,7 @@ io.on('connection', (socket) => {
   const { clientId, roomId } = socket.handshake.query;
 
   if (!clientId || !roomId) {
-    console.log('Connection attempt with missing clientId or roomId. Disconnecting.');
+    console.log(`Connection attempt with missing clientId ${clientId} or roomId ${roomId}.`);
     socket.disconnect();
     return;
   }
@@ -160,16 +160,14 @@ io.on('connection', (socket) => {
       where: { userId: String(clientId) }
     });
 
-
-    // TODO: Need to have the stripe authentication check here
-    if(!ClientJoined || ClientJoined.inRoom){
-      socket.emit('roomJoinError', { 
-        error: 'Client is already in a room',
-        message: `You are already in a room.`
+    if(!ClientJoined.subscription){
+      socket.emit('roomJoinError', {
+        error: 'No active subscription',
+        message: `You need an active subscription to join a room.`
       });
       return;
     }
-    
+
     // When creating, check if room ID is already in use
     if (isCreating && gameState.waitingRooms[roomId]) {
       console.log(`Room ${roomId} already exists for player ${clientId}`);
@@ -270,6 +268,13 @@ io.on('connection', (socket) => {
       
       // Move players from waiting room to game room
       waitingRoom.players.forEach(player => {
+        const playerUser = User.findOne({
+          where: { userId: String(player.id) }
+        });
+        let playerName;
+        if( playerUser ) {
+          playerName = playerUser.username || playerUser.email || 'Guest';
+        }
         gameState.rooms[roomId].players[player.id] = {
           x: 96,
           y: 128,
@@ -277,6 +282,7 @@ io.on('connection', (socket) => {
           vy: 0,
           activeKeys: new Set(),
           tagger: false,
+          playerName: playerName,
           socketId: player.socketId // Carry over socketId
         };
       });
@@ -631,7 +637,7 @@ function gameLoop() {
         const player2 = players[player2Id];
 
         if (!player1 || !player2 || !player1.peerId || !player2.peerId) {
-          console.log(`Skipping voice connection check for ${player1Id} and ${player2Id} in room ${roomId} due to missing peerId`);
+          //console.log(`Skipping voice connection check for ${player1Id} and ${player2Id} in room ${roomId} due to missing peerId`);
           continue;
         }
 
@@ -710,7 +716,7 @@ function gameLoop() {
           const playerSocket = io.sockets.sockets.get(otherPlayer.socketId);
           if (playerSocket) {
             console.log(`Player ${otherId} was tagged by ${taggerId} in room ${roomId}`);
-            playerSocket.emit('gameOver', { message: 'You were tagged! Game over.' });
+            playerSocket.emit('gameOver', { message: 'You were caught and eaten by the ghosts!' });
           }
 
           delete room.players[otherId];

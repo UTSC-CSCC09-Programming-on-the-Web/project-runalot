@@ -179,7 +179,20 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                     subscriptionId: subscription.id,
                     customerId: subscription.customer
                 });
-                // Here you can update your database to reflect cancelled subscription
+
+                try {
+                  const customer = await stripe.customers.retrieve(subscription.customer);
+                  const userId = customer.metadata?.userId;
+                  if (userId) {
+                    const user = await User.findOne({ where: { userId: String(userId) } });
+                    if (user) {
+                      user.subscription = false;
+                      await user.save();
+                    } 
+                  }
+                } catch (err) {
+                  console.error('Error updating user subscription status on deletion:', err);
+                }
                 break;
 
             case 'invoice.payment_failed':

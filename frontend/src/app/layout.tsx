@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./contexts/AuthContext";
+import { NavigationProvider } from "./contexts/NavigationContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Taggit - Ultimate Multiplayer Tag Game",
+  title: "Project Lancelot - Ultimate Multiplayer Tag Game",
   description: "Experience the ultimate multiplayer tag game with proximity chat and dynamic obstacles. Join or create rooms and play with friends!",
 };
   
@@ -25,7 +26,9 @@ export default function RootLayout({ children }: {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <NavigationProvider>{children}</NavigationProvider>
+        </AuthProvider>
       </body>
     </html>
   );
