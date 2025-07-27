@@ -12,7 +12,6 @@ import { Server } from 'socket.io';
 import gameRouter from './routes/game_router.js';
 import session from 'express-session';
 import passport from 'passport';
-import { Strategy as GitHubStrategy } from 'passport-github2';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import {authRouter} from './routes/auth-router.js';
 
@@ -26,15 +25,6 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser((user, done) => {
   done(null, user);
 });
-
-// GitHub Strategy
-passport.use(new GitHubStrategy({
-  clientID: process.env.GITHUB_ID,
-  clientSecret: process.env.GITHUB_SECRET,
-  callbackURL: `${process.env.BACKEND_URL}/auth/github/callback`
-}, (accessToken, refreshToken, profile, done) => {
-  return done(null, profile);
-}));
 
 // Google Strategy
 passport.use(new GoogleStrategy({
