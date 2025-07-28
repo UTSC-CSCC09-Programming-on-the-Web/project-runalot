@@ -655,11 +655,11 @@ function gameLoop() {
           const socket2 = io.sockets.sockets.get(player2.socketId);
 
           if (socket1) {
-            socket1.emit('connectVoice', { peerId: player2.peerId, clientId: player2Id });
+            socket1.emit('connectVoice', { peerId: player2.peerId, peerClientId: player2Id });
             console.log(`Connecting voice for ${player1Id} to ${player2Id} in room ${roomId}`);
           }
           if (socket2) {
-            socket2.emit('connectVoice', { peerId: player1.peerId, clientId: player1Id });
+            socket2.emit('connectVoice', { peerId: player1.peerId, peerClientId: player1Id });
             console.log(`Connecting voice for ${player2Id} to ${player1Id} in room ${roomId}`);
           }
 
