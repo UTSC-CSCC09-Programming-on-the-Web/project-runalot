@@ -5,12 +5,36 @@ import Navbar from "./components/Navbar";
 import { useAuth } from "./contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { useNavigation } from "./contexts/NavigationContext";
-
+import io from "socket.io-client";
 
 export default function HomePage() {
-  const { navigate } = useNavigation();
+  const [subscribed, setSubscribed] = useState(false);
+  const [hasCredentials, setHasCredentials] = useState(null);
 
+  const { navigate } = useNavigation();
   const { user, loading, login } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      setHasCredentials(io(`${process.env.NEXT_PUBLIC_BACKEND_URL}/stripe`, {
+        withCredentials: true,
+        query: { userId: user.id }
+      }));
+
+      if (user.subscription) {
+        setSubscribed(true);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (hasCredentials) {
+      hasCredentials.on('checkout-completed', (data) => {
+        setSubscribed(true);
+        hasCredentials.disconnect();
+      });
+    }
+  }, [hasCredentials]);
 
   const goToGame = () => {
     navigate("play");
@@ -34,11 +58,17 @@ export default function HomePage() {
             <p className="text-xl md:text-2xl text-gray-300 font-semibold mb-8 max-w-2xl mx-auto animate-spookyPulse" style={{fontFamily: 'Comic Sans MS, cursive', textShadow: '0 0 8px #222'}}>
               Ultimate online tag game. Run, chase, and outsmart your friends in a haunted arena!
             </p>
-            {user && <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            {user && 
+            (!subscribed ? ((<section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+                <CheckoutForm />
+              </div>
+            </section>)) :
+            (<div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button onClick={goToGame} className="bg-gray-900 hover:bg-indigo-600 cursor-pointer text-white font-extrabold py-3 px-10 rounded-xl text-xl shadow-lg border-2 border-gray-400 hover:scale-105 transition-all duration-200 ease-out animate-spookyPulse" style={{fontFamily: 'Luckiest Guy, Comic Sans MS, cursive', letterSpacing: 2, textShadow: '0 0 8px #000'}}>
                 PLAY NOW
               </button>
-            </div>}
+            </div>))}
           </div>
         </div>
         <style jsx global>{`
@@ -137,21 +167,7 @@ export default function HomePage() {
       </section>
 
       {/* Subscription Section */}
-      {user && !user.subscription && (<section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-300 dark:text-white mb-4">
-            Ready to Play?
-          </h2>
-          <p className="text-lg text-gray-500 dark:text-gray-300 mb-8">
-            Subscribe now to play Taggit with your friends
-          </p>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-          <CheckoutForm />
-        </div>
-      </section>)}
-      {user && user.subscription && (<section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+      {user && subscribed && (<section id="pricing" className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
         <div className="text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-300 dark:text-white mb-4">
             Welcome Back, Subscriber!
@@ -208,7 +224,7 @@ export default function HomePage() {
       </section>)}
 
       {/* Tech Stack */}
-      <section className="bg-gray-50 dark:bg-gray-900 py-16">
+      <section className="bg-gray-400 dark:bg-gray-900 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8">Built with Modern Technology</h3>
           <div className="flex flex-wrap justify-center items-center gap-8 opacity-60">
