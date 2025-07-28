@@ -103,7 +103,7 @@ export default function WaitingRoom() {
 
 
   useEffect(() => {
-    if(gameStarted){
+    if(socketConnection){
           // Initialize PeerJS and get microphone
           const peerHost = process.env.NEXT_PUBLIC_PEERHOST || 'localhost';
           console.log('[PhaserGame] Initializing PeerJS with:', { host: peerHost, port: 9000, path: '/', secure: false });
@@ -121,9 +121,10 @@ export default function WaitingRoom() {
               console.warn('[PhaserGame] PeerJS connection closed');
           });
           peer.on('open', (id) => {
-                  console.log('[PhaserGame] PeerJS open event, id:', id);
-                  // Notify server of our PeerJS ID
-                  socketConnection.emit('playerPeerReady', { clientId: clientId, peerId: id, roomId: roomId });
+            if(!gameStarted) return;
+              console.log('[PhaserGame] PeerJS open event, id:', id);
+              // Notify server of our PeerJS ID
+              socketConnection.emit('playerPeerReady', { clientId: clientId, peerId: id, roomId: roomId });
           });
   
           navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
@@ -153,60 +154,7 @@ export default function WaitingRoom() {
               localStreamRef.current?.getTracks().forEach(track => track.stop());
           };
         }
-      }, [gameStarted]);
-  
-      useEffect(() => {
-
-        if (gameStarted) {
-          // Listen for proximity events from server
-          const connectHandler = ({ peerId, peerClientId }) => {
-              if (peerRef.current && localStreamRef.current && !activeCallsRef.current[peerId]) {
-                if(clientId < peerClientId){
-                  const call = peerRef.current.call(peerId, localStreamRef.current);
-                  console.log(`[PhaserGame] Connecting to peer ${peerId} with client ID ${peerClientId}`);
-                  call.on('stream', remoteStream => {
-                      const audio = document.createElement('audio');
-                      audio.srcObject = remoteStream;
-                      audio.autoplay = true;
-                      audio.play();
-                      activeCallsRef.current[peerId] = call;
-                  });
-                  call.on('close', () => {
-                      delete activeCallsRef.current[peerId];
-                  });
-              }
-            }
-          };
-  
-          const disconnectHandler = ({ peerId }) => {
-              if (activeCallsRef.current[peerId]) {
-                  activeCallsRef.current[peerId].close();
-                  delete activeCallsRef.current[peerId];
-              }
-          };
-          
-          // Handler to disconnect all PeerJS calls and destroy PeerJS instance on socket disconnect
-          const fullDisconnectHandler = () => {
-              Object.values(activeCallsRef.current).forEach(call => call.close());
-              activeCallsRef.current = {};
-              if (peerRef.current) {
-                  peerRef.current.destroy();
-              }
-          };
-  
-          socketConnection.on('connectVoice', connectHandler);
-          socketConnection.on('disconnectVoice', disconnectHandler);
-          socketConnection.on('disconnect', fullDisconnectHandler);
-          socketConnection.on('gameOver', fullDisconnectHandler);
-          socketConnection.on('winGame', fullDisconnectHandler);
-  
-          return () => {
-              socketConnection.off('connectVoice', connectHandler);
-              socketConnection.off('disconnectVoice', disconnectHandler);
-              socketConnection.off('disconnect', fullDisconnectHandler);
-          };
-        }
-      }, [gameStarted]);
+      }, [socketConnection, gameStarted]);
 
   // Generate client ID from user info
   useEffect(() => {
@@ -245,6 +193,48 @@ export default function WaitingRoom() {
       socketConnection.on('gameStart', () => {
         setGameState('playing');
       });
+
+      const connectHandler = ({ peerId, peerClientId }) => {
+        console.log(`[PhaserGame] connectVoice event received for peer ${peerId} with client ID ${peerClientId}`);
+          if (peerRef.current && localStreamRef.current && !activeCallsRef.current[peerId]) {
+            if(clientId < peerClientId){
+              const call = peerRef.current.call(peerId, localStreamRef.current);
+              console.log(`[PhaserGame] Connecting to peer ${peerId} with client ID ${peerClientId}`);
+              call.on('stream', remoteStream => {
+                  const audio = document.createElement('audio');
+                  audio.srcObject = remoteStream;
+                  audio.autoplay = true;
+                  audio.play();
+                  activeCallsRef.current[peerId] = call;
+              });
+              call.on('close', () => {
+                  delete activeCallsRef.current[peerId];
+              });
+          }
+        }
+      };
+
+      const disconnectHandler = ({ peerId }) => {
+          if (activeCallsRef.current[peerId]) {
+              activeCallsRef.current[peerId].close();
+              delete activeCallsRef.current[peerId];
+          }
+      };
+      
+      // Handler to disconnect all PeerJS calls and destroy PeerJS instance on socket disconnect
+      const fullDisconnectHandler = () => {
+          Object.values(activeCallsRef.current).forEach(call => call.close());
+          activeCallsRef.current = {};
+          if (peerRef.current) {
+              peerRef.current.destroy();
+          }
+      };
+
+      socketConnection.on('connectVoice', connectHandler);
+      socketConnection.on('disconnectVoice', disconnectHandler);
+      socketConnection.on('disconnect', fullDisconnectHandler);
+      socketConnection.on('gameOver', fullDisconnectHandler);
+      socketConnection.on('winGame', fullDisconnectHandler);
 
       // Listen for gameStarted (role assignment)
       socketConnection.on('gameStarted', (data) => {
