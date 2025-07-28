@@ -14,6 +14,8 @@ import session from 'express-session';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import {authRouter} from './routes/auth-router.js';
+import csrf from 'csurf';
+import cookieParser from 'cookie-parser';
 
 const app = express();
 
@@ -48,15 +50,44 @@ const sessionMiddleware = session({
 
 app.use(sessionMiddleware);
 
+// Cookie parser middleware (required for CSRF)
+app.use(cookieParser());
 
+// CORS configuration
 app.use(cors({
   origin: process.env.FRONTEND_URL, // Your Next.js frontend URL
   credentials: true
 }));
 
+// CSRF protection setup
+const csrfProtection = csrf({
+  cookie: {
+    httpOnly: true,
+    secure: false, // Set to true in production with HTTPS
+    sameSite: 'lax'
+  }
+});
+
 // Initialize Passport BEFORE any routes that need authentication
 app.use(passport.initialize());
 app.use(passport.session());
+
+// CSRF token endpoint (before CSRF protection middleware)
+app.get('/auth/csrf-token', csrfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+});
+
+// Add CSRF protection to all routes except auth callbacks and webhooks
+app.use((req, res, next) => {
+  // Skip CSRF for auth callbacks, webhooks, and socket.io requests
+  if (req.path.includes('/auth/google/callback') || 
+      req.path.includes('/stripe/webhook') ||
+      req.path === '/auth/csrf-token' ||
+      req.path.startsWith('/socket.io/')) {
+    return next();
+  }
+  return csrfProtection(req, res, next);
+});
 
 // Routes (after Passport initialization)
 app.use('/auth', authRouter);

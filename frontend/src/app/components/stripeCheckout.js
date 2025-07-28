@@ -24,7 +24,7 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY);
 
 const CheckoutForm = () => {
   const [error, setError] = useState(null);
-  const { user, loading } = useAuth();
+  const { user, loading, makeAuthenticatedRequest } = useAuth();
   const router = useRouter();
   useEffect(() => {
     if (!user) return;
@@ -55,13 +55,15 @@ const CheckoutForm = () => {
       setError('User not authenticated');
       return Promise.reject(new Error('User not authenticated'));
     }
-    // Create a Checkout Session with user ID
-    return fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/stripe/create-checkout-session`, {
+
+    if (!makeAuthenticatedRequest) {
+      setError('CSRF protection not available');
+      return Promise.reject(new Error('CSRF protection not available'));
+    }
+
+    // Create a Checkout Session with user ID using CSRF protection
+    return makeAuthenticatedRequest(`${process.env.NEXT_PUBLIC_BACKEND_URL}/stripe/create-checkout-session`, {
       method: "POST",
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({
         userId: user.id,
         userEmail: user.emails?.[0]?.value || user.email,
