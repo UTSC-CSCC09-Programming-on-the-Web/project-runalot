@@ -103,21 +103,16 @@ io.on('connection', (socket) => {
   const { clientId, roomId } = socket.handshake.query;
 
   if (!clientId || !roomId) {
-    console.log(`Connection attempt with missing clientId ${clientId} or roomId ${roomId}.`);
     socket.disconnect();
     return;
   }
-
-  console.log(`Client ${clientId} connected to room ${roomId}`);
   
   // Handle waiting room events
   socket.on('joinWaitingRoom', async (data) => {
     const { roomId, clientId, playerName, isCreating } = data;
-    console.log(`Player ${clientId} (${playerName}) ${isCreating ? 'creating' : 'joining'} waiting room ${roomId}`);
     
     // Check if room exists when trying to join (not create)
     if (!isCreating && !gameState.waitingRooms[roomId]) {
-      console.log(`Room ${roomId} does not exist for player ${clientId}`);
       socket.emit('roomJoinError', { 
         error: 'Room does not exist',
         message: `Room "${roomId}" was not found. Please check the room ID or create a new room.`
@@ -155,7 +150,6 @@ io.on('connection', (socket) => {
 
     // When creating, check if room ID is already in use
     if (isCreating && gameState.waitingRooms[roomId]) {
-      console.log(`Room ${roomId} already exists for player ${clientId}`);
       socket.emit('roomCreateError', { 
         error: 'Room already exists',
         message: `Room "${roomId}" is already in use. Please try creating a new room.`
@@ -200,7 +194,6 @@ io.on('connection', (socket) => {
   
   socket.on('leaveWaitingRoom', async (data) => {
     const { roomId, clientId } = data;
-    console.log(`Player ${clientId} leaving waiting room ${roomId}`);
     
     const waitingRoom = gameState.waitingRooms[roomId];
     if (waitingRoom) {
@@ -242,15 +235,23 @@ io.on('connection', (socket) => {
     const waitingRoom = gameState.waitingRooms[roomId];
     
     if (waitingRoom && waitingRoom.host === clientId) {
-      console.log(`Host ${clientId} starting game in room ${roomId}`);
-      
+      if (!waitingRoom.players || waitingRoom.players.length < 2) {
+        // Not enough players to start
+        const hostSocket = io.sockets.sockets.get(waitingRoom.players.find(p => p.id === clientId)?.socketId);
+        if (hostSocket) {
+          hostSocket.emit('roomJoinError', {
+            error: 'Not enough players',
+            message: 'You need at least 2 players to start the game.'
+          });
+        }
+        return;
+      }
       // Create game room from waiting room
       if (!gameState.rooms[roomId]) {
         gameState.rooms[roomId] = {
           players: {},
         };
       }
-      
       // Move players from waiting room to game room
       waitingRoom.players.forEach(player => {
         const playerUser = User.findOne({
@@ -271,9 +272,7 @@ io.on('connection', (socket) => {
           socketId: player.socketId // Carry over socketId
         };
       });
-      
       io.to(`waiting_${roomId}`).emit('gameStart', { roomId });
-      
       // Move all players from waiting room to game room
       waitingRoom.players.forEach(player => {
         const playerSocket = io.sockets.sockets.get(player.socketId);
@@ -282,13 +281,10 @@ io.on('connection', (socket) => {
           playerSocket.join(roomId);
         }
       });
-      
       // Clean up waiting room
       delete gameState.waitingRooms[roomId];
-      
       // Start broadcasting game state
       broadcastGameState();
-
       ////////////////// GAME TIMER /////////////////////////////////
       if (gameState.timers[roomId]) {
         clearTimeout(gameState.timers[roomId]);
@@ -353,7 +349,6 @@ socket.on('playerPeerReady', (data) => {
       return;
     }
 
-    console.log(`Client ${clientId} requested to start the game in room ${roomId}`);
     room.started = true; // Mark the game as started
 
     let playerIds = Object.keys(room.players);
@@ -366,9 +361,9 @@ socket.on('playerPeerReady', (data) => {
 
       const corners = [
         { x: 96, y: 96 },
-        { x: 96, y: 32 * 31 - 96 },
+        { x: 96, y: 32 * 31 - 160 },
         { x: 32 * 31 - 128, y: 96 },
-        { x: 32 * 31 - 96, y: 32 * 31 - 96 }
+        { x: 32 * 31 - 96, y: 32 * 31 - 160 }
       ];
       const center = { x: Math.floor((30 * 32)/2), y: Math.floor((30 * 32)/2) };
 
@@ -445,7 +440,6 @@ socket.on('playerPeerReady', (data) => {
   });
 
   socket.on('disconnect', async () => {
-    console.log(`Client ${clientId} disconnected from room ${roomId}`);
 
     const deletePlayer = await User.findOne({
       where: { userId: String(clientId) }
@@ -483,7 +477,6 @@ socket.on('playerPeerReady', (data) => {
       delete room.players[clientId];
       if (Object.keys(room.players).length === 0) {
         // If the room is empty, delete it
-        console.log(`Room ${roomId} is empty, deleting.`);
         delete gameState.rooms[roomId];
       } else {
         // Otherwise, just broadcast the updated state
@@ -622,7 +615,6 @@ function gameLoop() {
         const player2 = players[player2Id];
 
         if (!player1 || !player2 || !player1.peerId || !player2.peerId) {
-          //console.log(`Skipping voice connection check for ${player1Id} and ${player2Id} in room ${roomId} due to missing peerId`);
           continue;
         }
 
@@ -634,18 +626,15 @@ function gameLoop() {
         const areConnected = player1.connections && player1.connections.has(player2Id);
 
         if (distance <= 150 && !areConnected) {
-          console.log(`Connecting voice for ${player1Id} and ${player2Id} in room ${roomId}`);
           // Notify players to connect
           const socket1 = io.sockets.sockets.get(player1.socketId);
           const socket2 = io.sockets.sockets.get(player2.socketId);
 
           if (socket1) {
             socket1.emit('connectVoice', { peerId: player2.peerId, peerClientId: player2Id });
-            console.log(`Connecting voice for ${player1Id} to ${player2Id} in room ${roomId}`);
           }
           if (socket2) {
             socket2.emit('connectVoice', { peerId: player1.peerId, peerClientId: player1Id });
-            console.log(`Connecting voice for ${player2Id} to ${player1Id} in room ${roomId}`);
           }
 
           // Track the connection
@@ -700,7 +689,6 @@ function gameLoop() {
           
           const playerSocket = io.sockets.sockets.get(otherPlayer.socketId);
           if (playerSocket) {
-            console.log(`Player ${otherId} was tagged by ${taggerId} in room ${roomId}`);
             playerSocket.emit('gameOver', { message: 'You were caught and eaten by the ghosts!' });
           }
 
@@ -720,7 +708,6 @@ function gameLoop() {
         const playerSocket = io.sockets.sockets.get(player.socketId);
         if (playerSocket) {
           playerSocket.emit('winGame', { message: 'You win! All others have been tagged.' });
-          console.log(`Player ${id} won the game in room ${roomId}`);
         }
       }
       // Clean up room and timer

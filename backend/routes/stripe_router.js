@@ -26,11 +26,6 @@ const stripeRouter = function (io) {
 
     // Join the client to a room named after their user ID.
     socket.join(userId);
-    console.log(`User ${userId} connected and joined their socket room.`);
-
-    socket.on('disconnect', () => {
-      console.log(`User ${userId} disconnected.`);
-    });
   });
 
   const router = Router();
@@ -49,7 +44,6 @@ router.get('/debug-auth', (req, res) => {
 
 router.post('/create-checkout-session', express.json(), requireAuth, async (req, res) => {
 
-  console.log('Creating checkout session with body:', req.body);
 
   try {
     const { userId, userEmail, userName } = req.body;
@@ -100,7 +94,6 @@ router.post('/create-checkout-session', express.json(), requireAuth, async (req,
             authProvider: authenticatedUser.provider || 'unknown'
           }
         });
-        console.log('Created new customer:', customer.id);
       }
     } catch (customerError) {
       return res.status(500).json({ error: 'Failed to process customer information' });
@@ -139,7 +132,6 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
     try {
         event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-        console.log('Received verified event:', event.type);
         res.status(200).send();
     } catch (err) {
         console.error('Webhook verification failed:', err.message);
@@ -175,16 +167,11 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                     message: 'Your subscription has been activated successfully!',
                     userId: userId
                   });
-                  console.log(`Sent 'checkout-completed' event to user: ${userId}`);
                 }
                 break;
 
             case 'customer.subscription.deleted':
                 const subscription = event.data.object;
-                console.log('Subscription deleted:', {
-                    subscriptionId: subscription.id,
-                    customerId: subscription.customer
-                });
 
                 try {
                   const customer = await stripe.customers.retrieve(subscription.customer);
@@ -203,21 +190,12 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
             case 'invoice.payment_failed':
                 const invoice = event.data.object;
-                console.log('Payment failed for invoice:', {
-                    invoiceId: invoice.id,
-                    customerId: invoice.customer,
-                    subscriptionId: invoice.subscription
-                });
                 // Here you can handle failed payments (e.g., notify user, retry logic)
                 break;
 
             case 'customer.subscription.created':
                 const newSubscription = event.data.object;
-                console.log('New subscription created:', {
-                    subscriptionId: newSubscription.id,
-                    customerId: newSubscription.customer,
-                    status: newSubscription.status
-                });
+
                 // Here you can update your database with new subscription
                 break;
         }

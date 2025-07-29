@@ -46,7 +46,6 @@ class BootScene extends Phaser.Scene {
     }
 
     create() {
-        console.log('BootScene create, starting MainScene');
         this.scene.start('MainScene');
     }
 }
@@ -383,7 +382,6 @@ class MainScene extends Phaser.Scene {
         // Remove sprites for players who disconnected
         this.otherPlayers.forEach((sprite, clientId) => {
             if (!allServerPlayerIds.includes(clientId)) {
-                console.log(`Removing sprite for disconnected player ${clientId}`);
                 sprite.destroy();
                 this.otherPlayers.delete(clientId);
             }
@@ -459,12 +457,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
             gameInstanceRef.current.registry.set('isTagger', isTagger);
             gameInstanceRef.current.registry.set('order', order);
             gameInstanceRef.current.registry.set('playerRoles', playerRoles);
-            console.log('[PhaserGame] Game instance created.');
         }
 
         return () => {
             if (gameInstanceRef.current) {
-                console.log('[PhaserGame] Destroying game instance.');
                 gameInstanceRef.current.destroy(true);
                 gameInstanceRef.current = null;
             }
@@ -473,7 +469,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
 
     useEffect(() => {
         if (!socketIo) {
-            console.log('[PhaserGame] Socket not available yet.');
             return;
         }
 
@@ -496,12 +491,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
         pollForInjection();
 
         const onConnect = () => {
-            console.log('[PhaserGame] Socket connected.');
             tryInjectSocket(); // Attempt injection on connect
-        };
-
-        const onDisconnect = (reason: string) => {
-            console.log('[PhaserGame] Socket disconnected:', reason);
         };
 
         const onGameStateUpdate = (gameState: any) => {
@@ -511,7 +501,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
         };
 
         const onGameOver = (data: any) => {
-            console.log('[PhaserGame] Game over received:', data);
             setGameOver(true);
             setGameOverMessage(data.message || 'You were tagged! Game over.');
             setIsWinner(false);
@@ -519,7 +508,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
         };
 
         const onWinGame = (data: any) => {
-            console.log('[PhaserGame] Win game received:', data);
             setGameOver(true);
             setGameOverMessage(data.message || 'You win! All others have been tagged.');
             setIsWinner(true);
@@ -539,7 +527,6 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
 
         // Register listeners
         socketIo.on('connect', onConnect);
-        socketIo.on('disconnect', onDisconnect);
         socketIo.on('gameStateUpdate', onGameStateUpdate);
         socketIo.on('gameOver', onGameOver);
         socketIo.on('winGame', onWinGame);
@@ -547,12 +534,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
 
         // Cleanup function
         return () => {
-            console.log('[PhaserGame] Cleaning up socket listeners.');
             if (pollId) {
                 cancelAnimationFrame(pollId);
             }
             socketIo.off('connect', onConnect);
-            socketIo.off('disconnect', onDisconnect);
             socketIo.off('gameStateUpdate', onGameStateUpdate);
             socketIo.off('gameOver', onGameOver);
             socketIo.off('winGame', onWinGame);

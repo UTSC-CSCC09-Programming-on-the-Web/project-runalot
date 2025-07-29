@@ -140,10 +140,10 @@ app.use("/stripe", stripeRouter(stripeNs));
 try {
   await sequelize.authenticate();
   await sequelize.sync({ alter: { drop: false } });
-  console.log("Connection has been established successfully.");
 } catch (error) {
   console.error("Unable to connect to the database:", error);
 }
+
 
 const PORT = process.env.PORT;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

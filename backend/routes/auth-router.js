@@ -11,20 +11,6 @@ const router = Router();
 router.use(bodyParser.urlencoded({ extended: false }));
 router.use(bodyParser.json());
 
-// Debug endpoint to test authentication
-router.get('/debug', (req, res) => {
-  console.log('=== AUTH DEBUG ===');
-  console.log('Session:', req.session);
-  console.log('User:', req.user);
-  console.log('isAuthenticated function exists:', typeof req.isAuthenticated);
-  console.log('isAuthenticated result:', req.isAuthenticated ? req.isAuthenticated() : 'function not available');
-  res.json({
-    session: req.session,
-    user: req.user,
-    isAuthenticated: req.isAuthenticated ? req.isAuthenticated() : false,
-    hasIsAuthenticatedFunction: typeof req.isAuthenticated === 'function'
-  });
-});
 
 // Authentication routes
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));

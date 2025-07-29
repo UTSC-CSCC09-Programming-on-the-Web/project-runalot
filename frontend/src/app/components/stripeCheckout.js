@@ -77,7 +77,6 @@ const CheckoutForm = () => {
         return res.json();
       })
       .then((data) => {
-        console.log('Client secret received:', data);
         return data.clientSecret;
       })
       .catch((err) => {
