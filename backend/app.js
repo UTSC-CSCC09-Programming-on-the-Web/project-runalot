@@ -119,28 +119,10 @@ app.use("/stripe", stripeRouter(stripeNs));
 try {
   await sequelize.authenticate();
   await sequelize.sync({ alter: { drop: false } });
-  console.log("Connection has been established successfully.");
 } catch (error) {
   console.error("Unable to connect to the database:", error);
 }
 
-
-// app.post('/create-checkout-session', async (req, res) => {
-//   const session = await stripe.checkout.sessions.create({
-//     ui_mode: 'embedded',
-//     line_items: [
-//       {
-//         // Provide the exact Price ID (for example, price_1234) of the product you want to sell
-//         price: process.env.STRIPE_PRICE_ID,
-//         quantity: 1,
-//       },
-//     ],
-//     mode: 'subscription',
-//     redirect_on_completion: 'never'
-//   });
-  
-//   res.send({clientSecret: session.client_secret});
-// });
 
 const PORT = process.env.PORT;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -15,10 +15,7 @@ const useSocket = (uri, query) => {
 
     setSocket(newSocket);
 
-    console.log('[useSocket] Socket created with query:', query);
-
     return () => {
-      console.log('[useSocket] Disconnecting socket.');
       newSocket.disconnect();
     };
   }, [uri, JSON.stringify(query)]); // Use JSON.stringify on query for dependency array

@@ -106,7 +106,6 @@ export default function WaitingRoom() {
     if(socketConnection){
           // Initialize PeerJS and get microphone
           const peerHost = process.env.NEXT_PUBLIC_PEERHOST || 'localhost';
-          console.log('[PhaserGame] Initializing PeerJS with:', { host: peerHost, port: 9000, path: '/', secure: false });
           const peer = new Peer({ host: peerHost, port: 443, path: '/', secure: process.env.NEXT_PUBLIC_PEERSECURE == 'true' });
           peerRef.current = peer;
   
@@ -122,7 +121,6 @@ export default function WaitingRoom() {
           });
           peer.on('open', (id) => {
             if(!gameStarted) return;
-              console.log('[PhaserGame] PeerJS open event, id:', id);
               // Notify server of our PeerJS ID
               socketConnection.emit('playerPeerReady', { clientId: clientId, peerId: id, roomId: roomId });
           });
@@ -161,7 +159,6 @@ export default function WaitingRoom() {
     if (user) {
       const id = user.id || user.login || user.email || `user_${Date.now()}`;
       setClientId(id);
-      console.log("Client ID set:", id);
     }
   }, [user]);
 
@@ -175,7 +172,6 @@ export default function WaitingRoom() {
   }, [clientId, roomId]);
 
   useEffect(() => {
-    console.log('[WaitingRoom] useEffect - socketConnection:', socketConnection);
     if (socketConnection && roomId && clientId) {
       
       // Listen for room updates
@@ -195,11 +191,9 @@ export default function WaitingRoom() {
       });
 
       const connectHandler = ({ peerId, peerClientId }) => {
-        console.log(`[PhaserGame] connectVoice event received for peer ${peerId} with client ID ${peerClientId}`);
           if (peerRef.current && localStreamRef.current && !activeCallsRef.current[peerId]) {
             if(clientId < peerClientId){
               const call = peerRef.current.call(peerId, localStreamRef.current);
-              console.log(`[PhaserGame] Connecting to peer ${peerId} with client ID ${peerClientId}`);
               call.on('stream', remoteStream => {
                   const audio = document.createElement('audio');
                   audio.srcObject = remoteStream;
@@ -247,15 +241,6 @@ export default function WaitingRoom() {
         if (data && data.playerRoles) {
           setPlayerRoles(data.playerRoles);
         }
-      });
-
-      // Listen for player join/leave
-      socketConnection.on('playerJoined', (data) => {
-        console.log(`Player ${data.playerId} joined the room`);
-      });
-
-      socketConnection.on('playerLeft', (data) => {
-        console.log(`Player ${data.playerId} left the room`);
       });
 
       socketConnection.on('gameOver', (data) => {
@@ -432,7 +417,6 @@ export default function WaitingRoom() {
   }
 
   if (gameState === 'playing') {
-    console.log(playerRoles);
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-gray-950 to-black pt-0 pb-6 px-4 relative overflow-hidden">
         {/* Spooky vignette overlay */}
