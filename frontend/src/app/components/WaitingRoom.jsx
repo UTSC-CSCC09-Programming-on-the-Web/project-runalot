@@ -459,7 +459,12 @@ export default function WaitingRoom() {
             )}
           </div>
           {/* Countdown Timer Below Game */}
-          {gameStarted && <CountdownTimer key={gameState} />}
+          {gameStarted && !gameOver && <CountdownTimer key={gameState} />}
+          {gameOver && (<div className="w-full flex justify-center mt-2">
+            <div className="bg-gray-900 text-white px-6 py-2 rounded-lg text-lg font-mono shadow" style={{minWidth: 160, textAlign: 'center'}}>
+              Game Over!
+            </div>
+          </div>)}
         </div>
         <style jsx global>{`
           @keyframes spookyMist {
