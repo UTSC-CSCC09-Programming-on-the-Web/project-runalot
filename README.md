@@ -11,7 +11,8 @@ Building a tag game with obstacles and proximity chat.
 
 ## URL
 
-https://taggit.tech/
+Game: https://taggit.tech/
+Video: https://www.youtube.com/watch?v=c2iVj49krgA
 
 ## Team Members
 
