@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import dotenv from 'dotenv';
+import { useCSRF } from '../../hooks/useCSRF';
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -18,6 +19,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { makeAuthenticatedRequest, csrfToken } = useCSRF();
 
   useEffect(() => {
     checkAuth();
@@ -49,9 +51,16 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/logout`, {
-        credentials: 'include',
-      });
+      if (makeAuthenticatedRequest && csrfToken) {
+        await makeAuthenticatedRequest(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/logout`, {
+          method: 'GET'
+        });
+      } else {
+        // Fallback for when CSRF token is not available
+        await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/logout`, {
+          credentials: 'include',
+        });
+      }
       setUser(null);
     } catch (error) {
       console.error('Logout failed:', error);
@@ -63,7 +72,9 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
-    checkAuth
+    checkAuth,
+    makeAuthenticatedRequest,
+    csrfToken
   };
 
   return (

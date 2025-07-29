@@ -3,6 +3,7 @@ import express from 'express';
 import { Router } from 'express';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
+import { User } from '../models/User.js';
 dotenv.config();
 
 const router = Router();
@@ -12,15 +13,6 @@ router.use(bodyParser.json());
 
 
 // Authentication routes
-router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
-
-router.get('/github/callback',
-  passport.authenticate('github', { failureRedirect: `${process.env.FRONTEND_URL}/login?error=github` }),
-  (req, res) => {
-    res.redirect(`${process.env.FRONTEND_URL}/`);
-  }
-);
-
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 router.get('/google/callback',
@@ -39,9 +31,31 @@ router.get('/logout', (req, res) => {
   });
 });
 
-router.get('/user', (req, res) => {
+router.get('/user', async (req, res) => {
   if (req.isAuthenticated()) {
-    res.json({ user: req.user });
+    try {
+      // Find the database user using the passport user ID
+      const dbUser = await User.findOne({ where: { userId: String(req.user.id) } });
+      
+      if (dbUser) {
+        // Return both passport user and database user info
+        res.json({ 
+          user: {
+            ...req.user,
+            subscription: dbUser.subscription,
+            customerId: dbUser.customerId,
+            username: dbUser.username,
+            inRoom: dbUser.inRoom
+          }
+        });
+      } else {
+        // If database user doesn't exist, return just passport user
+        res.json({ user: req.user });
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      res.status(500).json({ error: 'Failed to fetch user data' });
+    }
   } else {
     res.status(401).json({ error: 'Not authenticated' });
   }

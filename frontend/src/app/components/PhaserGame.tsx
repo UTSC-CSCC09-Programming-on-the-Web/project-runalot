@@ -563,7 +563,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({ socketIo, clientId, roomId, isT
 
     const handleReturnToDashboard = () => {
         socketIo.disconnect();
-        window.location.href = '/';
+        navigate('home');
     };
 
 

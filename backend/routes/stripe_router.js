@@ -9,7 +9,6 @@ dotenv.config(); // Load environment variables from .env file
 
 
 const stripeRouter = function (io) {
-
   io.on('connection', (socket) => {
     // The frontend sends `userId`, so we must use `userId` here.
     const { userId } = socket.handshake.query;
@@ -18,6 +17,13 @@ const stripeRouter = function (io) {
       socket.disconnect();
       return;
     }
+
+    if (userId !== socket.request.user.id) {
+      console.error(`User ID mismatch: expected ${socket.request.user.id}, got ${userId}. Disconnecting.`);
+      socket.disconnect();
+      return;
+    }
+
     // Join the client to a room named after their user ID.
     socket.join(userId);
   });
