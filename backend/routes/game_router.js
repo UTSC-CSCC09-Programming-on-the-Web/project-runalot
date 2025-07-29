@@ -201,6 +201,9 @@ io.on('connection', (socket) => {
     
     const waitingRoom = gameState.waitingRooms[roomId];
     if (waitingRoom) {
+      // Find the player to get their socket ID
+      const leavingPlayer = waitingRoom.players.find(p => p.id === clientId);
+    
       // Remove player from waiting room
       waitingRoom.players = waitingRoom.players.filter(p => p.id !== clientId);
 
@@ -219,6 +222,14 @@ io.on('connection', (socket) => {
         waitingRoom.players[0].isHost = true;
       }
       
+      // Remove the specific socket from the waiting room
+      if (leavingPlayer && leavingPlayer.socketId) {
+        const playerSocket = io.sockets.sockets.get(leavingPlayer.socketId);
+        if (playerSocket) {
+          playerSocket.leave(`waiting_${roomId}`);
+        }
+      }
+
       // Leave waiting room socket room
       socket.leave(`waiting_${roomId}`);
       
@@ -231,6 +242,8 @@ io.on('connection', (socket) => {
       
       // Notify other players
       socket.to(`waiting_${roomId}`).emit('playerLeft', { playerId: clientId });
+
+      console.log(`Player ${clientId} left waiting room ${roomId}`);
     }
   });
   
